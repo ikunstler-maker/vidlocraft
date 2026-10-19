@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoLooper Pro — Автоматичне дублювання та експорт відео</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- MP4 muxer for frame-accurate WebCodecs export -->
+  <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .gradient-border {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(168, 85, 247, 0.2));
+    }
+    .pulse-glow {
+      box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.4);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white flex flex-col">
+
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
+            VideoLooper Pro
+          </h1>
+          <p class="text-xs text-slate-400">Автоматичне розмноження кліпів без монтажної програми</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3 text-xs">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+          Працює офлайн у браузері
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col justify-start">
+
+    <!-- Upload Zone (Shown when no video loaded) -->
+    <section id="uploadSection" class="w-full max-w-3xl mx-auto my-auto py-12 transition-all duration-300">
+      <div id="dropZone" class="group relative border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-3xl p-10 sm:p-14 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-300 shadow-xl">
+        <input type="file" id="videoFileInput" accept="video/*" class="hidden">
+        
+        <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-indigo-500/10 group-hover:bg-indigo-500/20 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform duration-300">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+
+        <h3 class="text-xl sm:text-2xl font-bold text-white mb-2">Перетягніть відео сюди або натисніть для вибору</h3>
+        <p class="text-sm text-slate-400 max-w-md mx-auto mb-6 leading-relaxed">
+          Підтримуються формати MP4, WebM, MOV. Співвідношення сторін (горизонтальне, вертикальне 9:16 або квадрат) збережеться автоматично.
+        </p>
+
+        <button type="button" class="inline-flex items-center px-6 py-3 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Обрати відеофайл
+        </button>
+      </div>
+    </section>
+
+    <section id="editorSection" class="hidden space-y-6">
+      
+      <!-- Top Bar: File Details and Actions -->
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center space-x-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div class="truncate">
+            <h2 id="videoFileName" class="text-sm font-semibold text-white truncate">video.mp4</h2>
+            <div class="flex items-center space-x-2 text-xs text-slate-400 mt-0.5">
+              <span id="videoSourceRes">1920×1080</span>
+              <span>•</span>
+              <span id="videoSourceAspect">16:9 Горизонтальне</span>
+              <span>•</span>
+              <span id="videoSourceSize">0 МБ</span>
+            </div>
+          </div>
+        </div>
+
+        <button id="changeVideoBtn" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700">
+          Завантажити інше відео
+        </button>
+      </div>
+
+      <!-- Main Editor Grid: Left = Preview, Right = Looping & Export Controls -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+        <div class="lg:col-span-5 xl:col-span-6 space-y-4">
+          <div class="bg-slate-900/90 rounded-3xl p-4 border border-slate-800 shadow-2xl overflow-hidden flex flex-col items-center">
+            
+            <div class="w-full flex items-center justify-between text-xs text-slate-400 mb-3 px-1">
+              <span class="font-medium flex items-center">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
+                Попередній перегляд оригіналу
+              </span>
+              <span id="videoCurrentTimeDisplay" class="font-mono text-slate-300">00:00 / 00:00</span>
+            </div>
+
+            <!-- Video Player Display Container -->
+            <div class="relative w-full rounded-2xl overflow-hidden bg-black flex items-center justify-center max-h-[520px] aspect-video border border-slate-800" id="playerAspectRatioBox">
+              <video id="mainVideoPlayer" playsinline controls class="max-w-full max-h-full object-contain"></video>
+            </div>
+
+            <!-- Quick Player Info Chips -->
+            <div class="grid grid-cols-3 gap-2 w-full mt-4 text-center">
+              <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+                <span class="block text-[11px] text-slate-400 font-medium">Тривалість</span>
+                <span id="chipSrcDuration" class="text-sm font-semibold text-white">0.0 с</span>
+              </div>
+              <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+                <span class="block text-[11px] text-slate-400 font-medium">Співвідношення</span>
+                <span id="chipSrcAspect" class="text-sm font-semibold text-indigo-400">16:9</span>
+              </div>
+              <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+                <span class="block text-[11px] text-slate-400 font-medium">Аудіодоріжка</span>
+                <span id="chipSrcAudio" class="text-sm font-semibold text-emerald-400">Є</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 xl:col-span-6 space-y-6">
+
+          <!-- Time & Looping Calculation Summary Card -->
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-900 border border-indigo-500/30 p-6 shadow-xl">
+            <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs uppercase tracking-wider font-bold text-indigo-400">Розрахунок подовження хронометражу</span>
+              <span id="badgeLoopMultiplier" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                Всього 3 відтворення
+              </span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 items-center mb-4">
+              <div>
+                <span class="text-xs text-slate-400 block mb-1">Початково</span>
+                <span id="calcBaseTime" class="text-lg sm:text-xl font-bold text-slate-300">00:05.0</span>
+                <span class="text-[11px] text-slate-500 block">1 цикл</span>
+              </div>
+              <div class="text-center">
+                <span class="text-xs text-indigo-400 font-semibold block mb-1">Буде додано</span>
+                <span id="calcAddedTime" class="text-lg sm:text-xl font-extrabold text-indigo-400">+10.0 с</span>
+                <span id="calcAddedLoops" class="text-[11px] text-indigo-300/70 block">+2 повторення</span>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-emerald-400 font-semibold block mb-1">Підсумок</span>
+                <span id="calcTotalTime" class="text-xl sm:text-2xl font-extrabold text-emerald-400">00:15.0</span>
+                <span id="calcTotalSeconds" class="text-[11px] text-emerald-300/70 block">15.0 с загалом</span>
+              </div>
+            </div>
+
+            <!-- Visual timeline representation -->
+            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden flex">
+              <div class="bg-indigo-400 h-full w-[33%]" id="barInitial" title="Оригінальний кліп"></div>
+              <div class="bg-indigo-600/80 h-full w-[67%]" id="barDuplicates" title="Додані копії"></div>
+            </div>
+            <div class="flex justify-between text-[11px] text-slate-500 mt-1.5 font-medium">
+              <span>Оригінальний кліп</span>
+              <span id="barDuplicatesLabel">Дубльовані повторення</span>
+            </div>
+          </div>
+
+          <!-- Configuration Panel -->
+          <div class="bg-slate-900/90 rounded-3xl p-6 border border-slate-800 shadow-xl space-y-6">
+
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-sm font-semibold text-white flex items-center">
+                  <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  Кількість повторень (циклів)
+                </label>
+                <div class="flex items-center space-x-2">
+                  <button type="button" id="btnMinusLoop" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-lg active:scale-95 transition-all">-</button>
+                  <input type="number" id="loopNumberInput" min="2" max="5000" value="3" step="1"
+                    class="w-20 text-center font-bold text-white text-base bg-slate-800 border border-slate-700 focus:border-indigo-500 rounded-lg py-1 px-1 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    title="Введіть точну кількість повторень вручну">
+                  <button type="button" id="btnPlusLoop" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-lg active:scale-95 transition-all">+</button>
+                </div>
+              </div>
+
+              <!-- Slider for Loop Count (Scalable up to 500+ repetitions) -->
+              <input type="range" id="loopSlider" min="2" max="500" value="3" step="1"
+                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+              
+              <!-- Preset repetitions -->
+              <div class="flex flex-wrap items-center gap-1.5 mt-3">
+                <span class="text-[11px] text-slate-400 font-medium mr-1">Цикли:</span>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="2">2x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white transition-colors" data-loops="3">3x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="5">5x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="10">10x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="25">25x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="50">50x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="100">100x</button>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="225">225x (30 хв / 8с)</button>
+              </div>
+
+              <!-- Quick Target Duration Buttons -->
+              <div class="mt-3.5 p-3 rounded-2xl bg-slate-800/40 border border-slate-800/80">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-slate-300 flex items-center">
+                    <svg class="w-3.5 h-3.5 mr-1.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Швидке підганяння під хронометраж:
+                  </span>
+                  <span class="text-[10px] text-slate-500">Авторозрахунок циклів</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5">
+                  <button type="button" class="target-duration-btn py-1 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-emerald-600/80 text-slate-300 hover:text-white transition-colors text-center" data-seconds="60">1 хв</button>
+                  <button type="button" class="target-duration-btn py-1 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-emerald-600/80 text-slate-300 hover:text-white transition-colors text-center" data-seconds="300">5 хв</button>
+                  <button type="button" class="target-duration-btn py-1 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-emerald-600/80 text-slate-300 hover:text-white transition-colors text-center" data-seconds="600">10 хв</button>
+                  <button type="button" class="target-duration-btn py-1 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-emerald-600/80 text-slate-300 hover:text-white transition-colors text-center" data-seconds="900">15 хв</button>
+                  <button type="button" class="target-duration-btn py-1 px-2 rounded-lg text-xs font-semibold bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600 text-emerald-300 hover:text-white transition-colors text-center" data-seconds="1800">30 хв ✨</button>
+                </div>
+              </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-semibold text-white flex items-center">
+                  <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Роздільність експорту
+                </label>
+                <span id="aspectPreservedBadge" class="text-xs text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                  Формат збережено: 16:9
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mb-3">
+                Співвідношення сторін вихідного відео суворо зберігається (без спотворень і чорних рамок).
+              </p>
+
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="resOptionsGrid">
+                <!-- 1080p option -->
+                <button type="button" data-res="1080" class="res-btn p-3 rounded-2xl border text-left transition-all border-indigo-500 bg-indigo-500/10 text-white">
+                  <div class="font-bold text-sm">1080p</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="resDim1080">1920×1080</div>
+                  <div class="text-[10px] text-indigo-400 font-semibold mt-1">Full HD</div>
+                </button>
+
+                <!-- 720p option -->
+                <button type="button" data-res="720" class="res-btn p-3 rounded-2xl border text-left transition-all border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300">
+                  <div class="font-bold text-sm">720p</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="resDim720">1280×720</div>
+                  <div class="text-[10px] text-slate-400 mt-1">HD якість</div>
+                </button>
+
+                <!-- Source / Original option -->
+                <button type="button" data-res="source" class="res-btn p-3 rounded-2xl border text-left transition-all border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300">
+                  <div class="font-bold text-sm">Оригінал</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="resDimSource">100% пікселів</div>
+                  <div class="text-[10px] text-slate-400 mt-1">Без масштабу</div>
+                </button>
+
+                <!-- 480p option -->
+                <button type="button" data-res="480" class="res-btn p-3 rounded-2xl border text-left transition-all border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300">
+                  <div class="font-bold text-sm">480p</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="resDim480">854×480</div>
+                  <div class="text-[10px] text-slate-400 mt-1">Швидкий</div>
+                </button>
+              </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-semibold text-white flex items-center">
+                  <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Бітрейт відео
+                </label>
+                <div class="flex items-center space-x-2">
+                  <div class="relative flex items-center">
+                    <input type="number" id="bitrateNumberInput" min="0.1" max="150" step="0.1" value="8.0"
+                      class="w-24 text-right pr-9 font-bold text-white text-sm bg-slate-800 border border-slate-700 focus:border-indigo-500 rounded-lg py-1 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      title="Введіть будь-яке точне значення бітрейту від 0.1 Мбіт/с">
+                    <span class="absolute right-2 text-xs font-semibold text-slate-400 pointer-events-none">Мб/с</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bitrate Slider with extended range from 0.1 Mbps -->
+              <input type="range" id="bitrateSlider" min="0.1" max="50" value="8" step="0.1"
+                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+
+              <div class="flex flex-wrap justify-between items-center text-xs text-slate-400 mt-2 gap-2">
+                <div class="flex flex-wrap gap-1.5">
+                  <button type="button" class="bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" data-bps="0.5">0.5 Мб/с (Ultra Lite)</button>
+                  <button type="button" class="bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" data-bps="2">2 Мб/с (Web)</button>
+                  <button type="button" class="bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-indigo-600 font-bold text-white" data-bps="8">8 Мб/с (HD)</button>
+                  <button type="button" class="bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" data-bps="15">15 Мб/с (Pro)</button>
+                  <button type="button" class="bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" data-bps="30">30 Мб/с (Master)</button>
+                </div>
+                <div class="text-right ml-auto">
+                  <span class="text-slate-400">Орієнтовна вага: </span>
+                  <span id="estimatedFileSize" class="font-semibold text-white">~14.3 МБ</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Extra Toggles: Audio and Max GPU Speed Selector -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <label class="flex items-center space-x-3 p-3 rounded-2xl bg-slate-800/40 border border-slate-800 cursor-pointer hover:bg-slate-800/70 transition-colors">
+                <input type="checkbox" id="keepAudioCheck" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-slate-700">
+                <div class="text-xs">
+                  <span class="font-semibold text-white block">Зберігати аудіо</span>
+                  <span class="text-slate-400 block text-[11px]">Звук повторюється разом з кожним циклом</span>
+                </div>
+              </label>
+
+              <div class="p-3 rounded-2xl bg-slate-800/40 border border-slate-800 flex flex-col justify-center">
+                <span class="font-semibold text-white flex items-center text-xs">
+                  <svg class="w-3.5 h-3.5 mr-1 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Точний GPU-рендер (WebCodecs)
+                </span>
+                <span class="text-slate-400 block text-[11px] mt-1">Один цикл кодується кадр-за-кадром і дублюється без втрат — тривалість і кадри точно як у розрахунку.</span>
+              </div>
+            </div>
+
+            <!-- Background Rendering & Anti-Throttling Advisory Note -->
+            <div class="p-3 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 flex items-start space-x-2.5 text-xs text-indigo-300/90">
+              <svg class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="text-[11px] leading-relaxed">
+                <strong class="text-indigo-200">Порада для безперервного рендеру:</strong> не згортайте вкладку у фон. Витягніть її в окреме невелике вікно на екрані, щоб браузер не уповільнював роботу відеокарти та таймерів.
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <button id="startExportBtn" type="button" class="w-full py-4 px-6 rounded-2xl font-bold text-base bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-xl shadow-indigo-600/30 transition-all transform active:scale-[0.99] flex items-center justify-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>Згенерувати та завантажити готове відео</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="progressModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
+        
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2 text-indigo-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Експорт зацикленого відео...
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Відбувається захоплення кадрів та склеювання аудіодоріжки</p>
+          </div>
+          <span id="exportPercentageText" class="text-2xl font-black text-indigo-400">0%</span>
+        </div>
+
+        <!-- Hidden canvas for rendering (or miniature live monitor) -->
+        <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+          <canvas id="exportCanvas" class="max-w-full max-h-full object-contain"></canvas>
+          <div class="absolute bottom-2 left-2 bg-black/70 backdrop-blur px-2 py-0.5 rounded text-[10px] text-white font-mono" id="liveMonitorCycle">
+            Цикл: 1 / 3
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="space-y-2">
+          <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+            <div id="exportProgressBar" class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full w-0 transition-all duration-150"></div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-400 font-medium">
+            <span id="exportStatusText">Ініціалізація кодека...</span>
+            <span id="exportTimeRemaining">Залишилось: розрахунок...</span>
+          </div>
+        </div>
+
+        <!-- Cancel button -->
+        <div class="flex justify-end pt-2">
+          <button id="cancelExportBtn" type="button" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors">
+            Скасувати експорт
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="completeModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 text-center">
+        
+        <div class="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-bold text-white">Відео успішно створено!</h3>
+          <p class="text-xs text-slate-400 mt-1">Усі повторення об'єднано в один цілісний файл без втрати пропорцій кадру.</p>
+        </div>
+
+        <!-- Resulting video preview -->
+        <div class="rounded-2xl overflow-hidden bg-black border border-slate-800 aspect-video flex items-center justify-center">
+          <video id="finishedVideoPreview" controls playsinline class="max-w-full max-h-full object-contain"></video>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-left text-xs bg-slate-800/50 p-3.5 rounded-2xl border border-slate-700/50">
+          <div>
+            <span class="text-slate-400 block">Фінальна тривалість:</span>
+            <span id="finalDurationLabel" class="font-bold text-white text-sm">00:00</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">Розмір файлу:</span>
+            <span id="finalFileSizeLabel" class="font-bold text-white text-sm">0.0 МБ</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 pt-2">
+          <a id="downloadVideoBtn" download="looped_video.mp4" class="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Завантажити відео</span>
+          </a>
+          <button id="closeCompleteModalBtn" type="button" class="py-3.5 px-5 rounded-xl text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">
+            Повернутися
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Offscreen actively-decoded Video Element (Must NOT use display:none, else Chromium GPU pipeline sleeps) -->
+    <video id="exportVideoElement" playsinline muted crossOrigin="anonymous" class="fixed -top-full -left-full w-4 h-4 opacity-[0.01] pointer-events-none"></video>
+
+  </main>
+
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <script>
+    // State Management
+    const state = {
+      file: null,
+      fileUrl: null,
+      sourceWidth: 1920,
+      sourceHeight: 1080,
+      aspectRatio: 16 / 9,
+      duration: 0,
+      hasAudio: false,
+      loops: 3, // Total playthroughs
+      targetPreset: '1080', // '1080', '720', 'source', '480'
+      bitrateMbps: 8.0,
+      keepAudio: true,
+      renderSpeed: 1.0, // real-time fallback must play at 1x, otherwise MediaRecorder output gets shortened
+      isExporting: false,
+      exportCancelled: false,
+      generatedBlob: null
+    };
+
+    // DOM Elements
+    const dropZone = document.getElementById('dropZone');
+    const videoFileInput = document.getElementById('videoFileInput');
+    const uploadSection = document.getElementById('uploadSection');
+    const editorSection = document.getElementById('editorSection');
+    const mainVideoPlayer = document.getElementById('mainVideoPlayer');
+    const exportVideoElement = document.getElementById('exportVideoElement');
+    const exportCanvas = document.getElementById('exportCanvas');
+    const canvasCtx = exportCanvas.getContext('2d');
+
+    // UI Labels
+    const videoFileName = document.getElementById('videoFileName');
+    const videoSourceRes = document.getElementById('videoSourceRes');
+    const videoSourceAspect = document.getElementById('videoSourceAspect');
+    const videoSourceSize = document.getElementById('videoSourceSize');
+    const videoCurrentTimeDisplay = document.getElementById('videoCurrentTimeDisplay');
+    const chipSrcDuration = document.getElementById('chipSrcDuration');
+    const chipSrcAspect = document.getElementById('chipSrcAspect');
+    const chipSrcAudio = document.getElementById('chipSrcAudio');
+    const playerAspectRatioBox = document.getElementById('playerAspectRatioBox');
+
+    // Calculations
+    const badgeLoopMultiplier = document.getElementById('badgeLoopMultiplier');
+    const calcBaseTime = document.getElementById('calcBaseTime');
+    const calcAddedTime = document.getElementById('calcAddedTime');
+    const calcAddedLoops = document.getElementById('calcAddedLoops');
+    const calcTotalTime = document.getElementById('calcTotalTime');
+    const calcTotalSeconds = document.getElementById('calcTotalSeconds');
+    const barInitial = document.getElementById('barInitial');
+    const barDuplicates = document.getElementById('barDuplicates');
+    const barDuplicatesLabel = document.getElementById('barDuplicatesLabel');
+
+    // Controls
+    const loopSlider = document.getElementById('loopSlider');
+    const loopNumberInput = document.getElementById('loopNumberInput');
+    const btnMinusLoop = document.getElementById('btnMinusLoop');
+    const btnPlusLoop = document.getElementById('btnPlusLoop');
+    const bitrateSlider = document.getElementById('bitrateSlider');
+    const bitrateNumberInput = document.getElementById('bitrateNumberInput');
+    const estimatedFileSize = document.getElementById('estimatedFileSize');
+    const keepAudioCheck = document.getElementById('keepAudioCheck');
+    const startExportBtn = document.getElementById('startExportBtn');
+    const changeVideoBtn = document.getElementById('changeVideoBtn');
+    const aspectPreservedBadge = document.getElementById('aspectPreservedBadge');
+
+    // Modals
+    const progressModal = document.getElementById('progressModal');
+    const exportProgressBar = document.getElementById('exportProgressBar');
+    const exportPercentageText = document.getElementById('exportPercentageText');
+    const exportStatusText = document.getElementById('exportStatusText');
+    const exportTimeRemaining = document.getElementById('exportTimeRemaining');
+    const liveMonitorCycle = document.getElementById('liveMonitorCycle');
+    const cancelExportBtn = document.getElementById('cancelExportBtn');
+
+    const completeModal = document.getElementById('completeModal');
+    const finishedVideoPreview = document.getElementById('finishedVideoPreview');
+    const finalDurationLabel = document.getElementById('finalDurationLabel');
+    const finalFileSizeLabel = document.getElementById('finalFileSizeLabel');
+    const downloadVideoBtn = document.getElementById('downloadVideoBtn');
+    const closeCompleteModalBtn = document.getElementById('closeCompleteModalBtn');
+
+    // Resolution badge references
+    const resDim1080 = document.getElementById('resDim1080');
+    const resDim720 = document.getElementById('resDim720');
+    const resDimSource = document.getElementById('resDimSource');
+    const resDim480 = document.getElementById('resDim480');
+
+    // Enhanced time formatting supporting hours, minutes, and seconds
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds < 0) return '00:00.0';
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = (seconds % 60).toFixed(1);
+
+      const padMins = String(mins).padStart(2, '0');
+      const padSecs = String(secs).padStart(4, '0');
+
+      if (hrs > 0) {
+        const padHrs = String(hrs).padStart(2, '0');
+        return `${padHrs}:${padMins}:${padSecs}`;
+      }
+      return `${padMins}:${padSecs}`;
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'КБ', 'МБ', 'ГБ'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      const bgColor = type === 'error' ? 'bg-rose-600' : (type === 'success' ? 'bg-emerald-600' : 'bg-indigo-600');
+      toast.className = `${bgColor} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 transition-all transform translate-y-2 opacity-0`;
+      toast.innerHTML = `
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'error' ? 'M6 18L18 6M6 6l12 12' : 'M5 13l4 4L19 7'}" />
+        </svg>
+        <span>${message}</span>
+      `;
+      document.getElementById('toastContainer').appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function getAspectCategory(w, h) {
+      const ratio = w / h;
+      if (Math.abs(ratio - 16 / 9) < 0.05) return '16:9 Горизонтальне';
+      if (Math.abs(ratio - 9 / 16) < 0.05) return '9:16 Вертикальне (Reels/TikTok)';
+      if (Math.abs(ratio - 1) < 0.05) return '1:1 Квадрат';
+      if (Math.abs(ratio - 4 / 3) < 0.05) return '4:3 Класичне';
+      if (Math.abs(ratio - 4 / 5) < 0.05) return '4:5 Портретне';
+      if (Math.abs(ratio - 21 / 9) < 0.05) return '21:9 Ультрашироке';
+      return ratio > 1 ? `${ratio.toFixed(2)}:1 Горизонтальне` : `1:${(1 / ratio).toFixed(2)} Вертикальне`;
+    }
+
+    // Calculates export dimensions while strictly maintaining source aspect ratio and ensuring even pixel dimensions
+    function calculateTargetDimensions(preset) {
+      const { sourceWidth: srcW, sourceHeight: srcH } = state;
+      const isVertical = srcH > srcW;
+      const aspect = srcW / srcH;
+
+      if (preset === 'source') {
+        const w = srcW - (srcW % 2);
+        const h = srcH - (srcH % 2);
+        return { width: Math.max(w, 2), height: Math.max(h, 2) };
+      }
+
+      let targetBase = 1080;
+      if (preset === '720') targetBase = 720;
+      if (preset === '480') targetBase = 480;
+
+      let targetW, targetH;
+      if (isVertical) {
+        // Vertical video (e.g. 9:16): base is target width (e.g., 1080x1920 or 720x1280)
+        targetW = targetBase;
+        targetH = Math.round(targetBase / aspect);
+      } else {
+        // Landscape or square: base is target height (e.g., 1920x1080 or 1280x720)
+        targetH = targetBase;
+        targetW = Math.round(targetBase * aspect);
+      }
+
+      // Enforce even dimensions for video encoder stability
+      targetW = targetW - (targetW % 2);
+      targetH = targetH - (targetH % 2);
+
+      return { width: Math.max(targetW, 2), height: Math.max(targetH, 2) };
+    }
+
+    function updateResolutionDimensionBadges() {
+      const d1080 = calculateTargetDimensions('1080');
+      const d720 = calculateTargetDimensions('720');
+      const dSource = calculateTargetDimensions('source');
+      const d480 = calculateTargetDimensions('480');
+
+      if (resDim1080) resDim1080.textContent = `${d1080.width}×${d1080.height}`;
+      if (resDim720) resDim720.textContent = `${d720.width}×${d720.height}`;
+      if (resDimSource) resDimSource.textContent = `${dSource.width}×${dSource.height}`;
+      if (resDim480) resDim480.textContent = `${d480.width}×${d480.height}`;
+
+      const activeDim = calculateTargetDimensions(state.targetPreset);
+      if (aspectPreservedBadge) {
+        aspectPreservedBadge.textContent = `Формат збережено: ${activeDim.width}×${activeDim.height}`;
+      }
+    }
+
+    function updateCalculations() {
+      const baseDuration = state.duration || 0;
+      const loops = state.loops; // total playthroughs
+      const repeatsAdded = loops - 1; // how many additional duplicates
+
+      const totalDuration = baseDuration * loops;
+      const addedDuration = baseDuration * repeatsAdded;
+
+      // Update calculations UI
+      calcBaseTime.textContent = formatTime(baseDuration);
+      calcAddedTime.textContent = `+${addedDuration.toFixed(1)} с`;
+      calcAddedLoops.textContent = `+${repeatsAdded} ${repeatsAdded === 1 ? 'дубль' : (repeatsAdded < 5 ? 'дублі' : 'дублів')}`;
+      calcTotalTime.textContent = formatTime(totalDuration);
+      calcTotalSeconds.textContent = `${totalDuration.toFixed(1)} с підсумок`;
+
+      badgeLoopMultiplier.textContent = `Всього ${loops} відтворень (1x + ${repeatsAdded}x)`;
+
+      // Timeline visual distribution
+      const initialPercent = Math.max(5, (1 / loops) * 100);
+      const dupPercent = 100 - initialPercent;
+      barInitial.style.width = `${initialPercent}%`;
+      barDuplicates.style.width = `${dupPercent}%`;
+      barDuplicatesLabel.textContent = `Дублі: ${repeatsAdded} повт. (+${addedDuration.toFixed(1)} с)`;
+
+      // Estimate file size: (bitrate Mbps * 1024 * 1024 / 8 * seconds)
+      const mbps = state.bitrateMbps || 0.1;
+      const totalBytes = (mbps * 1000 * 1000 / 8) * totalDuration;
+      estimatedFileSize.textContent = `~${formatBytes(totalBytes)}`;
+    }
+
+    function loadVideoFile(file) {
+      if (!file || !file.type.startsWith('video/')) {
+        showToast('Будь ласка, оберіть дійсний відеофайл.', 'error');
+        return;
+      }
+
+      state.file = file;
+      if (state.fileUrl) {
+        URL.revokeObjectURL(state.fileUrl);
+      }
+      state.fileUrl = URL.createObjectURL(file);
+
+      // Set players
+      mainVideoPlayer.src = state.fileUrl;
+      exportVideoElement.src = state.fileUrl;
+
+      videoFileName.textContent = file.name;
+      videoSourceSize.textContent = formatBytes(file.size);
+
+      // On video metadata loaded
+      mainVideoPlayer.onloadedmetadata = () => {
+        const w = mainVideoPlayer.videoWidth;
+        const h = mainVideoPlayer.videoHeight;
+        const dur = mainVideoPlayer.duration;
+
+        state.sourceWidth = w;
+        state.sourceHeight = h;
+        state.aspectRatio = w / h;
+        state.duration = dur;
+
+        // Check if audio exists
+        state.hasAudio = Boolean(
+          mainVideoPlayer.mozHasAudio ||
+          Boolean(mainVideoPlayer.webkitAudioDecodedByteCount) ||
+          Boolean(mainVideoPlayer.audioTracks && mainVideoPlayer.audioTracks.length) ||
+          true // fallback: attempt audio capture
+        );
+
+        // Update UI details
+        const aspectText = getAspectCategory(w, h);
+        videoSourceRes.textContent = `${w} × ${h} px`;
+        videoSourceAspect.textContent = aspectText;
+        chipSrcDuration.textContent = `${dur.toFixed(1)} с`;
+        chipSrcAspect.textContent = aspectText.split(' ')[0];
+        chipSrcAudio.textContent = state.hasAudio ? 'Присутній' : 'Не виявлено';
+
+        // Set player box aspect ratio styling
+        if (h > w) {
+          playerAspectRatioBox.classList.remove('aspect-video');
+          playerAspectRatioBox.style.aspectRatio = `${w} / ${h}`;
+        } else {
+          playerAspectRatioBox.style.aspectRatio = '';
+          playerAspectRatioBox.classList.add('aspect-video');
+        }
+
+        // Adjust slider max dynamically to accommodate at least 30 minutes (1800s)
+        const loopsFor30Min = Math.ceil(1800 / Math.max(dur, 0.5));
+        loopSlider.max = Math.max(500, loopsFor30Min + 10);
+
+        updateResolutionDimensionBadges();
+        updateCalculations();
+
+        // Refine duration to the exact frame count of the video track (what the export will produce)
+        state.videoInfo = null;
+        readContainerVideoInfo(file).then(info => {
+          if (!info || state.file !== file) return;
+          state.videoInfo = info;
+          state.duration = info.duration;
+          chipSrcDuration.textContent = `${info.duration.toFixed(2)} с · ${info.fps} fps`;
+          updateCalculations();
+        });
+
+        // Reveal Editor
+        uploadSection.classList.add('hidden');
+        editorSection.classList.remove('hidden');
+        showToast('Відео успішно завантажено!', 'success');
+      };
+
+      mainVideoPlayer.ontimeupdate = () => {
+        videoCurrentTimeDisplay.textContent = `${formatTime(mainVideoPlayer.currentTime)} / ${formatTime(state.duration)}`;
+      };
+    }
+
+    // Drag & Drop
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-indigo-400', 'bg-indigo-950/20');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-indigo-400', 'bg-indigo-950/20');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-400', 'bg-indigo-950/20');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        loadVideoFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('click', () => videoFileInput.click());
+    videoFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        loadVideoFile(e.target.files[0]);
+      }
+    });
+
+    changeVideoBtn.addEventListener('click', () => {
+      videoFileInput.click();
+    });
+
+    // Loops Counter supporting direct manual typing and values up to 5000+
+    function setLoopCount(val, skipInputUpdate = false) {
+      const num = Math.min(5000, Math.max(2, parseInt(val, 10) || 2));
+      state.loops = num;
+
+      if (!skipInputUpdate && loopNumberInput) {
+        loopNumberInput.value = num;
+      }
+      if (loopSlider) {
+        loopSlider.value = Math.min(parseInt(loopSlider.max, 10), num);
+      }
+      
+      // Update active preset buttons
+      document.querySelectorAll('.preset-loop-btn').forEach(btn => {
+        if (parseInt(btn.getAttribute('data-loops'), 10) === num) {
+          btn.className = 'preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white transition-colors';
+        } else {
+          btn.className = 'preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors';
+        }
+      });
+
+      updateCalculations();
+    }
+
+    // Direct manual numeric input events
+    loopNumberInput.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val) && val >= 1) {
+        setLoopCount(val, true);
+      }
+    });
+
+    loopNumberInput.addEventListener('blur', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (isNaN(val) || val < 2) {
+        setLoopCount(2);
+      } else {
+        setLoopCount(val);
+      }
+    });
+
+    loopSlider.addEventListener('input', (e) => setLoopCount(e.target.value));
+    btnMinusLoop.addEventListener('click', () => setLoopCount(state.loops - 1));
+    btnPlusLoop.addEventListener('click', () => setLoopCount(state.loops + 1));
+
+    document.querySelectorAll('.preset-loop-btn').forEach(btn => {
+      btn.addEventListener('click', () => setLoopCount(btn.getAttribute('data-loops')));
+    });
+
+    // Auto-calculate loops based on target duration (e.g. 30 minutes = 1800s)
+    document.querySelectorAll('.target-duration-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetSecs = parseFloat(btn.getAttribute('data-seconds'));
+        const baseDuration = state.duration || 8.0; // fallback to 8s if not yet loaded
+        const calculatedLoops = Math.max(2, Math.round(targetSecs / baseDuration));
+        
+        setLoopCount(calculatedLoops);
+        showToast(`Встановлено ${calculatedLoops} циклів під тривалість ~${formatTime(calculatedLoops * baseDuration)}`, 'info');
+      });
+    });
+
+    // Resolution Buttons
+    document.querySelectorAll('.res-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const res = btn.getAttribute('data-res');
+        state.targetPreset = res;
+
+        document.querySelectorAll('.res-btn').forEach(b => {
+          b.className = 'res-btn p-3 rounded-2xl border text-left transition-all border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300';
+        });
+        btn.className = 'res-btn p-3 rounded-2xl border text-left transition-all border-indigo-500 bg-indigo-500/10 text-white';
+
+        updateResolutionDimensionBadges();
+      });
+    });
+
+    function setBitrate(val, skipInputUpdate = false) {
+      let bps = parseFloat(val);
+      if (isNaN(bps) || bps < 0.1) bps = 0.1;
+      bps = Math.round(bps * 10) / 10; // 1 decimal place
+
+      state.bitrateMbps = bps;
+
+      if (!skipInputUpdate && bitrateNumberInput) {
+        bitrateNumberInput.value = bps.toFixed(1);
+      }
+      if (bitrateSlider) {
+        bitrateSlider.value = Math.min(50, bps);
+      }
+
+      // Highlight matching preset button if active
+      document.querySelectorAll('.bitrate-preset-btn').forEach(btn => {
+        const targetBps = parseFloat(btn.getAttribute('data-bps'));
+        if (Math.abs(targetBps - bps) < 0.05) {
+          btn.className = 'bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-indigo-600 font-bold text-white';
+        } else {
+          btn.className = 'bitrate-preset-btn text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300';
+        }
+      });
+
+      updateCalculations();
+    }
+
+    bitrateSlider.addEventListener('input', (e) => setBitrate(e.target.value));
+
+    bitrateNumberInput.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val) && val >= 0.1) {
+        setBitrate(val, true);
+      }
+    });
+
+    bitrateNumberInput.addEventListener('blur', (e) => {
+      const val = parseFloat(e.target.value);
+      if (isNaN(val) || val < 0.1) {
+        setBitrate(0.1);
+      } else {
+        setBitrate(val);
+      }
+    });
+
+    document.querySelectorAll('.bitrate-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => setBitrate(btn.getAttribute('data-bps')));
+    });
+
+    // Audio & Turbo Speed Checkboxes
+    keepAudioCheck.addEventListener('change', (e) => {
+      state.keepAudio = e.target.checked;
+    });
+
+    function getBestSupportedMimeType() {
+      const candidates = [
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4;codecs=avc1',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      for (const t of candidates) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return '';
+    }
+
+    // ===== Frame-accurate export (WebCodecs + MP4 muxer) =====
+    // The clip is decoded and encoded exactly ONCE, frame by frame (not tied to real-time playback),
+    // then the encoded frames are repeated with shifted timestamps for every loop.
+    // Result: the output duration always equals loops × clip duration, with every frame intact.
+
+    // Yield to the event loop without timers (timers get throttled in background tabs)
+    function yieldTask() {
+      return new Promise(resolve => {
+        const ch = new MessageChannel();
+        ch.port1.onmessage = () => resolve();
+        ch.port2.postMessage(0);
+      });
+    }
+
+    function waitEvent(el, name, timeoutMs = 5000) {
+      return new Promise(resolve => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          el.removeEventListener(name, finish);
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(finish, timeoutMs);
+        el.addEventListener(name, finish);
+      });
+    }
+
+    async function seekVideo(video, time) {
+      const seeked = waitEvent(video, 'seeked');
+      video.currentTime = time;
+      await seeked;
+      if (video.readyState < 2) await waitEvent(video, 'loadeddata', 2000);
+    }
+
+    // Reads the exact frame rate and frame count of the video track from the MP4/MOV container (mdhd + stsz boxes)
+    async function readContainerVideoInfo(file) {
+      try {
+        const buf = new DataView(await file.arrayBuffer());
+        const fourcc = (o) => String.fromCharCode(buf.getUint8(o), buf.getUint8(o + 1), buf.getUint8(o + 2), buf.getUint8(o + 3));
+        const boxes = (start, end) => {
+          const out = [];
+          let o = start;
+          while (o + 8 <= end) {
+            let size = buf.getUint32(o);
+            let header = 8;
+            if (size === 1) { size = Number(buf.getBigUint64(o + 8)); header = 16; }
+            else if (size === 0) size = end - o;
+            if (size < header) break;
+            out.push({ type: fourcc(o + 4), start: o + header, end: Math.min(end, o + size) });
+            o += size;
+          }
+          return out;
+        };
+        const find = (list, type) => list.find(b => b.type === type);
+        const moov = find(boxes(0, buf.byteLength), 'moov');
+        if (!moov) return null;
+        for (const trak of boxes(moov.start, moov.end).filter(b => b.type === 'trak')) {
+          const mdia = find(boxes(trak.start, trak.end), 'mdia');
+          if (!mdia) continue;
+          const mdiaKids = boxes(mdia.start, mdia.end);
+          const hdlr = find(mdiaKids, 'hdlr');
+          if (!hdlr || fourcc(hdlr.start + 8) !== 'vide') continue;
+          const mdhd = find(mdiaKids, 'mdhd');
+          const v1 = buf.getUint8(mdhd.start) === 1;
+          const timescale = buf.getUint32(mdhd.start + (v1 ? 20 : 12));
+          const duration = v1 ? Number(buf.getBigUint64(mdhd.start + 24)) : buf.getUint32(mdhd.start + 16);
+          const minf = find(mdiaKids, 'minf');
+          const stbl = minf && find(boxes(minf.start, minf.end), 'stbl');
+          const stsz = stbl && find(boxes(stbl.start, stbl.end), 'stsz');
+          if (!stsz || !timescale || !duration) return null;
+          const sampleCount = buf.getUint32(stsz.start + 8);
+          const fps = sampleCount / (duration / timescale);
+          if (!(fps > 1 && fps < 241) || sampleCount < 1) return null;
+          return { fps: Math.round(fps * 1000) / 1000, frameCount: sampleCount, duration: sampleCount / (Math.round(fps * 1000) / 1000) };
+        }
+      } catch (e) {
+        console.warn('Container frame rate not readable:', e);
+      }
+      return null;
+    }
+
+    // Measures the source frame rate from presented frames (falls back to 30 fps)
+    async function detectFrameRate(video) {
+      if (!('requestVideoFrameCallback' in video)) return 30;
+      video.muted = true;
+      video.playbackRate = 1;
+      await seekVideo(video, 0);
+      const times = [];
+      return new Promise(resolve => {
+        let stopped = false;
+        const finish = () => {
+          if (stopped) return;
+          stopped = true;
+          video.pause();
+          const deltas = [];
+          for (let i = 1; i < times.length; i++) {
+            const d = times[i] - times[i - 1];
+            if (d > 0.001) deltas.push(d);
+          }
+          if (deltas.length < 3) return resolve(30);
+          deltas.sort((a, b) => a - b);
+          const fps = 1 / deltas[Math.floor(deltas.length / 2)];
+          resolve(Math.min(60, Math.max(10, Math.round(fps))));
+        };
+        const onFrame = (now, meta) => {
+          if (stopped) return;
+          times.push(meta.mediaTime);
+          if (times.length >= 15) finish();
+          else video.requestVideoFrameCallback(onFrame);
+        };
+        video.requestVideoFrameCallback(onFrame);
+        video.play().catch(finish);
+        setTimeout(finish, 2500);
+      });
+    }
+
+    async function pickVideoEncoderConfig(width, height, fps, bitrate) {
+      const codecs = ['avc1.640033', 'avc1.4d0033', 'avc1.420033', 'avc1.640028', 'avc1.4d0028', 'avc1.42001f'];
+      for (const codec of codecs) {
+        const cfg = { codec, width, height, bitrate, framerate: fps, avc: { format: 'avc' } };
+        try {
+          const res = await VideoEncoder.isConfigSupported(cfg);
+          if (res.supported) return cfg;
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    async function pickAudioEncoderConfig(sampleRate, numberOfChannels) {
+      if (typeof AudioEncoder === 'undefined') return null;
+      const options = [
+        { muxCodec: 'aac', cfg: { codec: 'mp4a.40.2', sampleRate, numberOfChannels, bitrate: 128000 } }
+      ];
+      if (sampleRate === 48000) {
+        options.push({ muxCodec: 'opus', cfg: { codec: 'opus', sampleRate, numberOfChannels, bitrate: 160000 } });
+      }
+      for (const opt of options) {
+        try {
+          const res = await AudioEncoder.isConfigSupported(opt.cfg);
+          if (res.supported) return opt;
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    async function decodeSourceAudio(file) {
+      try {
+        const buf = await file.arrayBuffer();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+          return await ctx.decodeAudioData(buf);
+        } finally {
+          ctx.close().catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Source audio could not be decoded (skipping audio):', e);
+        return null;
+      }
+    }
+
+    function setExportProgress(frac, status) {
+      const percent = Math.min(99, Math.max(0, Math.round(frac * 100)));
+      exportProgressBar.style.width = `${percent}%`;
+      exportPercentageText.textContent = `${percent}%`;
+      if (status) exportStatusText.textContent = status;
+    }
+
+    async function startExport() {
+      if (state.isExporting) return;
+      if (!state.file || !state.duration) {
+        showToast('Спочатку завантажте відеофайл.', 'error');
+        return;
+      }
+      if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined' || typeof Mp4Muxer === 'undefined') {
+        showToast('Браузер не підтримує WebCodecs — використовується експорт у реальному часі (повільніше). Для швидкого експорту відкрийте в Chrome або Edge.', 'info');
+        return startExportRealtime();
+      }
+
+      state.isExporting = true;
+      state.exportCancelled = false;
+
+      const { width: targetW, height: targetH } = calculateTargetDimensions(state.targetPreset);
+      exportCanvas.width = targetW;
+      exportCanvas.height = targetH;
+
+      progressModal.classList.remove('hidden');
+      setExportProgress(0, 'Аналіз частоти кадрів...');
+      exportTimeRemaining.textContent = 'Залишилось: розрахунок...';
+      liveMonitorCycle.textContent = `Цикл: 1 / ${state.loops}`;
+
+      const totalLoops = state.loops;
+      const baseDuration = state.duration;
+      const bitrateBps = Math.round(state.bitrateMbps * 1000 * 1000);
+      const exportStartTime = performance.now();
+
+      const checkCancelled = () => {
+        if (state.exportCancelled) throw new Error('__cancelled__');
+      };
+
+      cancelExportBtn.onclick = () => {
+        state.exportCancelled = true;
+        progressModal.classList.add('hidden');
+        showToast('Експорт скасовано користувачем.', 'info');
+      };
+
+      let wakeLockSentinel = null;
+      try {
+        if ('wakeLock' in navigator) wakeLockSentinel = await navigator.wakeLock.request('screen');
+      } catch (wlErr) {
+        console.debug('WakeLock not granted:', wlErr);
+      }
+
+      let videoEncoder = null;
+      let audioEncoder = null;
+
+      try {
+        // ---- 1. Frame rate & encoder setup ----
+        const info = state.videoInfo || await readContainerVideoInfo(state.file);
+        const fps = info ? info.fps : await detectFrameRate(exportVideoElement);
+        checkCancelled();
+        const frameCount = info ? info.frameCount : Math.max(1, Math.round(baseDuration * fps));
+        const frameDurUs = 1e6 / fps;
+        const loopDurationSec = frameCount / fps;
+        const loopDurationUs = Math.round(frameCount * frameDurUs);
+
+        const videoConfig = await pickVideoEncoderConfig(targetW, targetH, fps, bitrateBps);
+        if (!videoConfig) throw new Error('H.264 енкодер недоступний для роздільності ' + targetW + '×' + targetH);
+
+        // ---- 2. Encode ONE loop, frame by frame ----
+        const videoChunks = [];
+        let videoMeta = null;
+        let encoderError = null;
+        videoEncoder = new VideoEncoder({
+          output: (chunk, meta) => {
+            const data = new Uint8Array(chunk.byteLength);
+            chunk.copyTo(data);
+            videoChunks.push({ data, type: chunk.type, index: Math.round(chunk.timestamp / frameDurUs) });
+            if (meta && meta.decoderConfig && !videoMeta) videoMeta = meta;
+          },
+          error: (e) => { encoderError = e; }
+        });
+        videoEncoder.configure(videoConfig);
+
+        const gop = Math.max(1, Math.round(fps * 2)); // keyframe every ~2 s for smooth seeking
+        exportVideoElement.pause();
+        exportVideoElement.muted = true;
+
+        for (let i = 0; i < frameCount; i++) {
+          checkCancelled();
+          if (encoderError) throw encoderError;
+
+          const t = Math.min(Math.max(0, baseDuration - 0.001), (i + 0.25) / fps);
+          await seekVideo(exportVideoElement, t);
+          canvasCtx.drawImage(exportVideoElement, 0, 0, targetW, targetH);
+
+          const frame = new VideoFrame(exportCanvas, {
+            timestamp: Math.round(i * frameDurUs),
+            duration: Math.round(frameDurUs)
+          });
+          videoEncoder.encode(frame, { keyFrame: i % gop === 0 });
+          frame.close();
+
+          while (videoEncoder.encodeQueueSize > 8) await yieldTask();
+
+          setExportProgress((i + 1) / frameCount * 0.6, `Кодування кадрів циклу: ${i + 1} з ${frameCount} (${fps} fps)`);
+          liveMonitorCycle.textContent = `Кадр: ${i + 1} / ${frameCount}`;
+          const elapsed = (performance.now() - exportStartTime) / 1000;
+          const frac = (i + 1) / frameCount * 0.6;
+          exportTimeRemaining.textContent = `Залишилось: ~${Math.ceil(elapsed / frac - elapsed)} с`;
+        }
+        await videoEncoder.flush();
+        if (encoderError) throw encoderError;
+        videoEncoder.close();
+        videoEncoder = null;
+        if (!videoMeta || videoChunks.length === 0) throw new Error('Енкодер не повернув жодного кадру');
+        videoChunks.sort((a, b) => a.index - b.index);
+
+        // ---- 3. Audio: decode once, loop PCM to exact video length, encode ----
+        let audioChunks = [];
+        let audioMuxInfo = null;
+        if (state.keepAudio) {
+          setExportProgress(0.62, 'Обробка аудіодоріжки...');
+          const audioBuffer = await decodeSourceAudio(state.file);
+          checkCancelled();
+          if (audioBuffer && audioBuffer.length > 0) {
+            const sr = audioBuffer.sampleRate;
+            const channels = Math.min(2, audioBuffer.numberOfChannels);
+            const audioOpt = await pickAudioEncoderConfig(sr, channels);
+            if (audioOpt) {
+              const loopSamples = Math.max(1, Math.round(loopDurationSec * sr));
+              const loopPcm = [];
+              for (let c = 0; c < channels; c++) {
+                const ch = new Float32Array(loopSamples);
+                const src = audioBuffer.getChannelData(c);
+                ch.set(src.subarray(0, Math.min(src.length, loopSamples)));
+                loopPcm.push(ch);
+              }
+
+              let audioError = null;
+              let audioMeta = null;
+              audioEncoder = new AudioEncoder({
+                output: (chunk, meta) => {
+                  if (meta && meta.decoderConfig && !audioMeta) audioMeta = meta;
+                  audioChunks.push({ chunk, meta: audioMeta && audioChunks.length === 0 ? audioMeta : undefined });
+                },
+                error: (e) => { audioError = e; }
+              });
+              audioEncoder.configure(audioOpt.cfg);
+
+              const totalSamples = loopSamples * totalLoops;
+              const block = sr; // 1 second per AudioData
+              let blockCount = 0;
+              for (let offset = 0; offset < totalSamples; offset += block) {
+                checkCancelled();
+                if (audioError) throw audioError;
+                const frames = Math.min(block, totalSamples - offset);
+                const planar = new Float32Array(frames * channels);
+                for (let c = 0; c < channels; c++) {
+                  const src = loopPcm[c];
+                  const base = c * frames;
+                  let pos = (offset % loopSamples);
+                  let written = 0;
+                  while (written < frames) {
+                    const n = Math.min(frames - written, loopSamples - pos);
+                    planar.set(src.subarray(pos, pos + n), base + written);
+                    written += n;
+                    pos = 0;
+                  }
+                }
+                const audioData = new AudioData({
+                  format: 'f32-planar',
+                  sampleRate: sr,
+                  numberOfFrames: frames,
+                  numberOfChannels: channels,
+                  timestamp: Math.round(offset * 1e6 / sr),
+                  data: planar
+                });
+                audioEncoder.encode(audioData);
+                audioData.close();
+                while (audioEncoder.encodeQueueSize > 16) await yieldTask();
+                if (++blockCount % 20 === 0) {
+                  setExportProgress(0.62 + (offset / totalSamples) * 0.2, `Кодування аудіо: ${formatTime(offset / sr)} з ${formatTime(totalSamples / sr)}`);
+                  await yieldTask();
+                }
+              }
+              await audioEncoder.flush();
+              if (audioError) throw audioError;
+              audioEncoder.close();
+              audioEncoder = null;
+              if (audioChunks.length > 0 && audioChunks[0].meta) {
+                audioMuxInfo = { codec: audioOpt.muxCodec, numberOfChannels: channels, sampleRate: sr };
+              } else {
+                audioChunks = [];
+              }
+            } else {
+              showToast('Аудіоенкодер недоступний — відео буде без звуку.', 'info');
+            }
+          }
+        }
+
+        // ---- 4. Mux: repeat encoded loop with shifted timestamps ----
+        const target = new Mp4Muxer.ArrayBufferTarget();
+        const muxer = new Mp4Muxer.Muxer({
+          target,
+          video: { codec: 'avc', width: targetW, height: targetH, frameRate: fps },
+          audio: audioMuxInfo || undefined,
+          fastStart: 'in-memory',
+          firstTimestampBehavior: 'offset'
+        });
+
+        let audioIdx = 0;
+        for (let k = 0; k < totalLoops; k++) {
+          checkCancelled();
+          for (let j = 0; j < videoChunks.length; j++) {
+            const c = videoChunks[j];
+            const g = k * frameCount + c.index;
+            const ts = Math.round(g * frameDurUs);
+            const dur = Math.round((g + 1) * frameDurUs) - ts;
+            muxer.addVideoChunkRaw(c.data, c.type, ts, dur, (k === 0 && j === 0) ? videoMeta : undefined);
+          }
+          const loopEndUs = (k + 1) * loopDurationUs;
+          while (audioMuxInfo && audioIdx < audioChunks.length && audioChunks[audioIdx].chunk.timestamp < loopEndUs) {
+            const a = audioChunks[audioIdx++];
+            muxer.addAudioChunk(a.chunk, a.meta);
+          }
+          setExportProgress(0.82 + ((k + 1) / totalLoops) * 0.16, `Збирання відео: цикл ${k + 1} з ${totalLoops}`);
+          liveMonitorCycle.textContent = `Цикл: ${k + 1} / ${totalLoops}`;
+          if (k % 5 === 0) await yieldTask();
+        }
+        while (audioMuxInfo && audioIdx < audioChunks.length) {
+          const a = audioChunks[audioIdx++];
+          muxer.addAudioChunk(a.chunk, a.meta);
+        }
+
+        setExportProgress(0.99, 'Завершення збирання MP4...');
+        await yieldTask();
+        muxer.finalize();
+
+        const blob = new Blob([target.buffer], { type: 'video/mp4' });
+        state.generatedBlob = blob;
+
+        const generatedUrl = URL.createObjectURL(blob);
+        finishedVideoPreview.src = generatedUrl;
+        finalDurationLabel.textContent = formatTime(loopDurationSec * totalLoops);
+        finalFileSizeLabel.textContent = formatBytes(blob.size);
+
+        const baseCleanName = (state.file.name || 'video').replace(/\.[^/.]+$/, '');
+        downloadVideoBtn.href = generatedUrl;
+        downloadVideoBtn.download = `${baseCleanName}_looped_${totalLoops}x_${targetH}p_${state.bitrateMbps}Mbps.mp4`;
+
+        exportProgressBar.style.width = '100%';
+        exportPercentageText.textContent = '100%';
+        progressModal.classList.add('hidden');
+        completeModal.classList.remove('hidden');
+        showToast('Відео успішно згенеровано!', 'success');
+      } catch (err) {
+        if (err && err.message === '__cancelled__') return;
+        console.error('Export failed:', err);
+        progressModal.classList.add('hidden');
+        showToast('Помилка експорту: ' + (err && err.message ? err.message : err), 'error');
+      } finally {
+        try { if (videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close(); } catch (e) {}
+        try { if (audioEncoder && audioEncoder.state !== 'closed') audioEncoder.close(); } catch (e) {}
+        exportVideoElement.pause();
+        state.isExporting = false;
+        if (wakeLockSentinel) {
+          try { wakeLockSentinel.release(); } catch (e) {}
+        }
+      }
+    }
+
+    // Fallback for browsers without WebCodecs: real-time recording at 1x (MediaRecorder records wall-clock time)
+    async function startExportRealtime() {
+      if (state.isExporting) return;
+      if (!state.file || !state.duration) {
+        showToast('Спочатку завантажте відеофайл.', 'error');
+        return;
+      }
+
+      state.isExporting = true;
+      state.exportCancelled = false;
+
+      // Determine Target Dimensions
+      const { width: targetW, height: targetH } = calculateTargetDimensions(state.targetPreset);
+      exportCanvas.width = targetW;
+      exportCanvas.height = targetH;
+
+      // Show Progress Modal
+      progressModal.classList.remove('hidden');
+      exportProgressBar.style.width = '0%';
+      exportPercentageText.textContent = '0%';
+      exportStatusText.textContent = 'Підготовка енкодера та аудіо...';
+      exportTimeRemaining.textContent = 'Залишилось: розрахунок...';
+      liveMonitorCycle.textContent = `Цикл: 1 / ${state.loops}`;
+
+      const mimeType = getBestSupportedMimeType();
+      const isMp4 = mimeType.includes('mp4');
+      const ext = isMp4 ? 'mp4' : 'webm';
+      const bitrateBps = Math.round(state.bitrateMbps * 1024 * 1024);
+
+      // Create Canvas Stream (30 FPS for smooth rendering)
+      const canvasStream = exportCanvas.captureStream(30);
+      const combinedTracks = [...canvasStream.getVideoTracks()];
+
+      // Audio handling: At 8x/16x, WebAudio cannot real-time resample at 16x clock rate without stalling the video decoder
+      let audioCtx = null;
+      let audioSourceNode = null;
+      let audioDest = null;
+      const allowAudio = state.keepAudio;
+
+      if (allowAudio) {
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+          }
+          audioDest = audioCtx.createMediaStreamDestination();
+          audioSourceNode = audioCtx.createMediaElementSource(exportVideoElement);
+          audioSourceNode.connect(audioDest);
+
+          // Silent local output so export doesn't blast user's ears
+          const silentGain = audioCtx.createGain();
+          silentGain.gain.value = 0.0;
+          audioSourceNode.connect(silentGain);
+          silentGain.connect(audioCtx.destination);
+
+          if (audioDest.stream.getAudioTracks().length > 0) {
+            combinedTracks.push(audioDest.stream.getAudioTracks()[0]);
+          }
+        } catch (err) {
+          console.warn('Audio graph connection notice:', err);
+        }
+      }
+
+      const combinedStream = new MediaStream(combinedTracks);
+      let recorder;
+      try {
+        recorder = new MediaRecorder(combinedStream, {
+          mimeType: mimeType || undefined,
+          videoBitsPerSecond: bitrateBps
+        });
+      } catch (e) {
+        recorder = new MediaRecorder(combinedStream);
+      }
+
+      const recordedChunks = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunks.push(e.data);
+        }
+      };
+
+      const totalLoops = state.loops;
+      const baseDuration = state.duration;
+      const exportStartTime = performance.now();
+
+      let wakeLockSentinel = null;
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockSentinel = await navigator.wakeLock.request('screen');
+        }
+      } catch (wlErr) {
+        console.debug('WakeLock not granted:', wlErr);
+      }
+
+      let currentLoopIndex = 0;
+      let animFrameId = null;
+      let rVfcId = null;
+      let isSeekingNextLoop = false;
+      let watchdogIntervalId = null;
+      let fallbackTimerId = null;
+      let lastProgressTime = performance.now();
+
+      // Extract raw video track to request frames as fast as GPU produces them
+      const videoTrack = combinedTracks[0];
+
+      function renderNextFrame() {
+        if (state.exportCancelled || !state.isExporting) return;
+        lastProgressTime = performance.now();
+
+        if (!exportVideoElement.paused && !exportVideoElement.ended) {
+          // Hardware draw onto offscreen canvas
+          canvasCtx.drawImage(exportVideoElement, 0, 0, targetW, targetH);
+          if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+            videoTrack.requestFrame();
+          }
+        }
+
+        // Calculate continuous overall progress
+        const currentVideoTime = exportVideoElement.currentTime || 0;
+        const progressFrac = Math.min(1, Math.max(0, (currentLoopIndex + (currentVideoTime / baseDuration)) / totalLoops));
+        const percent = Math.min(99, Math.round(progressFrac * 100));
+
+        exportProgressBar.style.width = `${percent}%`;
+        exportPercentageText.textContent = `${percent}%`;
+        liveMonitorCycle.textContent = `Цикл: ${currentLoopIndex + 1} / ${totalLoops}`;
+        exportStatusText.textContent = `Рендеринг (${state.renderSpeed}x GPU): цикл ${currentLoopIndex + 1} з ${totalLoops}...`;
+
+        // Estimate remaining time
+        const elapsedSecs = (performance.now() - exportStartTime) / 1000;
+        if (progressFrac > 0.005) {
+          const totalSecsEstimated = elapsedSecs / progressFrac;
+          const remainingSecs = Math.max(0, totalSecsEstimated - elapsedSecs);
+          exportTimeRemaining.textContent = `Залишилось: ~${Math.ceil(remainingSecs)} с`;
+        }
+
+        // Clear any previous fallback timeout
+        if (fallbackTimerId) clearTimeout(fallbackTimerId);
+
+        let scheduledViaRvfc = false;
+        if ('requestVideoFrameCallback' in exportVideoElement) {
+          try {
+            rVfcId = exportVideoElement.requestVideoFrameCallback(() => {
+              scheduledViaRvfc = true;
+              renderNextFrame();
+            });
+          } catch(e) {}
+        }
+
+        // Resilient Fallback: If rVFC doesn't trigger within 40ms, fallback to rAF to guarantee pipeline never stalls
+        fallbackTimerId = setTimeout(() => {
+          if (!scheduledViaRvfc && state.isExporting && !state.exportCancelled) {
+            animFrameId = requestAnimationFrame(renderNextFrame);
+          }
+        }, 40);
+      }
+
+      function cleanupExport() {
+        if (watchdogIntervalId) clearInterval(watchdogIntervalId);
+        if (fallbackTimerId) clearTimeout(fallbackTimerId);
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        if (rVfcId && 'cancelVideoFrameCallback' in exportVideoElement) {
+          exportVideoElement.cancelVideoFrameCallback(rVfcId);
+        }
+        exportVideoElement.pause();
+        exportVideoElement.currentTime = 0;
+        exportVideoElement.onended = null;
+        exportVideoElement.ontimeupdate = null;
+        state.isExporting = false;
+        isSeekingNextLoop = false;
+        if (audioCtx && audioCtx.state !== 'closed') {
+          try { audioCtx.close(); } catch(e) {}
+        }
+        if (wakeLockSentinel) {
+          try { wakeLockSentinel.release(); } catch(e) {}
+          wakeLockSentinel = null;
+        }
+      }
+
+      // Cancellation
+      cancelExportBtn.onclick = () => {
+        state.exportCancelled = true;
+        cleanupExport();
+        if (recorder && recorder.state !== 'inactive') {
+          recorder.stop();
+        }
+        progressModal.classList.add('hidden');
+        showToast('Експорт скасовано користувачем.', 'info');
+      };
+
+      async function triggerNextCycle() {
+        if (isSeekingNextLoop || state.exportCancelled || !state.isExporting) return;
+        isSeekingNextLoop = true;
+
+        currentLoopIndex++;
+        if (currentLoopIndex < totalLoops && !state.exportCancelled) {
+          exportVideoElement.currentTime = 0;
+          try {
+            await exportVideoElement.play();
+          } catch(e) {
+            console.warn('Playback resume notice:', e);
+          }
+          setTimeout(() => { isSeekingNextLoop = false; }, 35);
+        } else {
+          finalizeExport();
+        }
+      }
+
+      // Loop handler for video cycles
+      exportVideoElement.onended = () => {
+        triggerNextCycle();
+      };
+
+      // Guard against frame edge delays with ontimeupdate
+      exportVideoElement.ontimeupdate = () => {
+        const margin = Math.min(0.25, 0.04 * (state.renderSpeed || 1.0));
+        if (exportVideoElement.currentTime >= baseDuration - margin && !exportVideoElement.paused) {
+          triggerNextCycle();
+        }
+      };
+
+      // Hardware Watchdog: automatically detects stalls and awakens the GPU decoder without requiring screenshots
+      watchdogIntervalId = setInterval(() => {
+        if (!state.isExporting || state.exportCancelled) return;
+        const now = performance.now();
+        // If no frame has updated for 350ms, wake the pipeline up
+        if (now - lastProgressTime > 350) {
+          lastProgressTime = now;
+          if (exportVideoElement.paused || exportVideoElement.ended || exportVideoElement.currentTime >= baseDuration - 0.2) {
+            triggerNextCycle();
+          } else {
+            exportVideoElement.play().catch(() => {});
+          }
+          renderNextFrame();
+        }
+      }, 250);
+
+      function finalizeExport() {
+        cleanupExport();
+        exportStatusText.textContent = 'Завершення збирання відео...';
+        exportProgressBar.style.width = '100%';
+        exportPercentageText.textContent = '100%';
+
+        if (recorder.state !== 'inactive') {
+          recorder.stop();
+        }
+
+        recorder.onstop = () => {
+          if (state.exportCancelled) return;
+
+          const blob = new Blob(recordedChunks, { type: mimeType || `video/${ext}` });
+          state.generatedBlob = blob;
+
+          // Populate complete modal
+          const generatedUrl = URL.createObjectURL(blob);
+          finishedVideoPreview.src = generatedUrl;
+          finalDurationLabel.textContent = formatTime(baseDuration * totalLoops);
+          finalFileSizeLabel.textContent = formatBytes(blob.size);
+
+          const baseCleanName = (state.file.name || 'video').replace(/\.[^/.]+$/, "");
+          const outName = `${baseCleanName}_looped_${totalLoops}x_${targetH}p_${state.bitrateMbps}Mbps.${ext}`;
+          downloadVideoBtn.href = generatedUrl;
+          downloadVideoBtn.download = outName;
+
+          progressModal.classList.add('hidden');
+          completeModal.classList.remove('hidden');
+          showToast('Відео успішно згенеровано!', 'success');
+        };
+      }
+
+      recorder.start(250);
+      exportVideoElement.currentTime = 0;
+      exportVideoElement.playbackRate = 1.0;
+
+      try {
+        await exportVideoElement.play();
+        renderNextFrame();
+      } catch (err) {
+        showToast('Помилка запуску відтворення: ' + err.message, 'error');
+        cancelExportBtn.click();
+      }
+    }
+
+    startExportBtn.addEventListener('click', startExport);
+
+    closeCompleteModalBtn.addEventListener('click', () => {
+      completeModal.classList.add('hidden');
+    });
+
+  </script>
+</body>
+</html>
