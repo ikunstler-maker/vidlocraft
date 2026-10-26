@@ -1233,10 +1233,22 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
       if (video.readyState < 2) await waitEvent(video, 'loadeddata', 2000);
     }
 
-    // Reads the exact frame rate and frame count of the video track from the MP4/MOV container (mdhd + stsz boxes)
+    // Snaps a measured frame rate to the nearest common rate when it is within `tolerance` (relative)
+    const COMMON_FRAME_RATES = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 119.88, 120];
+    function snapFrameRate(fps, tolerance = 0.02) {
+      let best = null;
+      for (const r of COMMON_FRAME_RATES) {
+        if (Math.abs(fps - r) / r <= tolerance && (best === null || Math.abs(fps - r) < Math.abs(fps - best))) best = r;
+      }
+      return best !== null ? best : Math.round(fps * 1000) / 1000;
+    }
+
+    // Reads the exact frame rate and frame count of the video track from the container:
+    // MP4/MOV (mdhd + stsz boxes) or WebM/Matroska (DefaultDuration + counted blocks)
     async function readContainerVideoInfo(file) {
       try {
         const buf = new DataView(await file.arrayBuffer());
+        if (buf.byteLength >= 4 && buf.getUint32(0) === 0x1A45DFA3) return readMatroskaVideoInfo(buf);
         const fourcc = (o) => String.fromCharCode(buf.getUint8(o), buf.getUint8(o + 1), buf.getUint8(o + 2), buf.getUint8(o + 3));
         const boxes = (start, end) => {
           const out = [];
@@ -1282,7 +1294,126 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
       return null;
     }
 
-    // Measures the source frame rate from presented frames (falls back to 30 fps)
+    // WebM/Matroska: EBML elements. Frame rate comes from the video track's DefaultDuration (or from the block
+    // timestamps when it is missing, e.g. MediaRecorder files); the frame count is the number of video blocks.
+    function readMatroskaVideoInfo(buf) {
+      const len = buf.byteLength;
+      const vint = (o, keepMarker) => {
+        const first = buf.getUint8(o);
+        let n = 1, mask = 0x80;
+        while (n <= 8 && !(first & mask)) { n++; mask >>= 1; }
+        if (n > 8 || o + n > len) throw new Error('bad EBML vint');
+        let value = keepMarker ? first : first & (mask - 1);
+        let allOnes = (first & (mask - 1)) === mask - 1;
+        for (let i = 1; i < n; i++) {
+          const b = buf.getUint8(o + i);
+          value = value * 256 + b;
+          if (b !== 0xFF) allOnes = false;
+        }
+        return { value, length: n, unknown: !keepMarker && allOnes };
+      };
+      const element = (o, end) => {
+        if (o + 2 > end) return null;
+        const id = vint(o, true);
+        const size = vint(o + id.length, false);
+        const start = o + id.length + size.length;
+        return { id: id.value, start, end: size.unknown ? end : Math.min(end, start + size.value), unknown: size.unknown };
+      };
+      const children = (el) => {
+        const out = [];
+        for (let o = el.start; o < el.end;) {
+          const c = element(o, el.end);
+          if (!c) break;
+          out.push(c);
+          o = c.end;
+        }
+        return out;
+      };
+      const uint = (el) => { let v = 0; for (let i = el.start; i < el.end; i++) v = v * 256 + buf.getUint8(i); return v; };
+      const str = (el) => { let v = ''; for (let i = el.start; i < el.end; i++) { const b = buf.getUint8(i); if (!b) break; v += String.fromCharCode(b); } return v; };
+      // Top-level children of Segment: where an unknown-size Cluster ends
+      const LEVEL1 = new Set([0x114D9B74, 0x1549A966, 0x1654AE6B, 0x1F43B675, 0x1C53BB6B, 0x1941A469, 0x1043A770, 0x1254C367]);
+
+      const ebml = element(0, len);
+      const segment = ebml && element(ebml.end, len);
+      if (!segment || segment.id !== 0x18538067) return null;
+
+      let timecodeScale = 1e6; // ns per timestamp unit
+      let track = null;
+      let frameCount = 0;
+      let laced = false;
+      const timestamps = [];
+      const readBlock = (start, clusterTime) => {
+        const tn = vint(start, false);
+        if (!track || tn.value !== track.number) return;
+        const flags = buf.getUint8(start + tn.length + 2);
+        if (flags & 0x06) {
+          laced = true;
+          frameCount += buf.getUint8(start + tn.length + 3) + 1;
+        } else {
+          frameCount++;
+        }
+        timestamps.push(clusterTime + buf.getInt16(start + tn.length));
+      };
+
+      for (let o = segment.start; o < segment.end;) {
+        const el = element(o, segment.end);
+        if (!el) break;
+        if (el.id === 0x1549A966) { // Info
+          const tcs = children(el).find(c => c.id === 0x2AD7B1);
+          if (tcs) timecodeScale = uint(tcs) || 1e6;
+        } else if (el.id === 0x1654AE6B && !track) { // Tracks
+          for (const entry of children(el).filter(c => c.id === 0xAE)) {
+            const kids = children(entry);
+            const get = (id) => kids.find(c => c.id === id);
+            if (!get(0x83) || uint(get(0x83)) !== 1) continue; // TrackType 1 = video
+            track = {
+              number: get(0xD7) ? uint(get(0xD7)) : 1,
+              defaultDuration: get(0x23E383) ? uint(get(0x23E383)) : 0,
+              codecId: get(0x86) ? str(get(0x86)) : ''
+            };
+            break;
+          }
+        } else if (el.id === 0x1F43B675) { // Cluster
+          if (!track) return null;
+          let clusterTime = 0;
+          let q = el.start;
+          while (q < el.end) {
+            const c = element(q, el.end);
+            if (!c || (el.unknown && LEVEL1.has(c.id))) break;
+            if (c.id === 0xE7) clusterTime = uint(c); // Timestamp
+            else if (c.id === 0xA3) readBlock(c.start, clusterTime); // SimpleBlock
+            else if (c.id === 0xA0) { // BlockGroup
+              const block = children(c).find(b => b.id === 0xA1);
+              if (block) readBlock(block.start, clusterTime);
+            }
+            q = c.end;
+          }
+          o = q;
+          continue;
+        }
+        o = el.end;
+      }
+      if (!track || frameCount < 1) return null;
+
+      let fps = track.defaultDuration ? 1e9 / track.defaultDuration : 0;
+      if (!laced && timestamps.length >= 2) {
+        timestamps.sort((a, b) => a - b);
+        const span = (timestamps[timestamps.length - 1] - timestamps[0]) * timecodeScale / 1e9;
+        const measured = span > 0 ? (timestamps.length - 1) / span : 0;
+        // Trust DefaultDuration unless the actual timestamps clearly disagree with it
+        if (measured && (!fps || Math.abs(measured - fps) / fps > 0.1)) fps = snapFrameRate(measured);
+      }
+      fps = Math.round(fps * 1000) / 1000;
+      if (!(fps > 1 && fps < 241)) return null;
+      // Matroska CodecID (V_VP9, V_MPEG4/ISO/AVC, ...): never matches the MP4 sample entries copy mode needs
+      return { fps, frameCount, duration: frameCount / fps, codec: track.codecId || null };
+    }
+
+    // Measures the source frame rate from presented frames (falls back to 30 fps).
+    // Only for containers readContainerVideoInfo can't parse. Frame callbacks can be throttled (hidden element,
+    // busy page), which skips frames and makes some intervals 2× or 3× longer, so the shortest common interval
+    // is used rather than the median, and the result is snapped to a standard rate.
     async function detectFrameRate(video) {
       if (!('requestVideoFrameCallback' in video)) return 30;
       video.muted = true;
@@ -1302,18 +1433,20 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
           }
           if (deltas.length < 3) return resolve(30);
           deltas.sort((a, b) => a - b);
-          const fps = 1 / deltas[Math.floor(deltas.length / 2)];
-          resolve(Math.min(60, Math.max(10, Math.round(fps))));
+          // Median of the intervals within 25% of the shortest one = one source frame
+          const single = deltas.filter(d => d <= deltas[0] * 1.25);
+          const fps = 1 / single[Math.floor(single.length / 2)];
+          resolve(snapFrameRate(Math.min(120, Math.max(10, fps)), 0.03));
         };
         const onFrame = (now, meta) => {
           if (stopped) return;
           times.push(meta.mediaTime);
-          if (times.length >= 15) finish();
+          if (times.length >= 40) finish();
           else video.requestVideoFrameCallback(onFrame);
         };
         video.requestVideoFrameCallback(onFrame);
         video.play().catch(finish);
-        setTimeout(finish, 2500);
+        setTimeout(finish, 3000);
       });
     }
 
