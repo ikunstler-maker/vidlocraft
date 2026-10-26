@@ -1,6 +1,6 @@
 // Service worker for the installed app (PWA): keeps the page available offline.
 // Network first, so a new version of index.html arrives as soon as you're online; the cache is the offline fallback.
-const CACHE = 'vlp-v1';
+const CACHE = 'vidlocraft-v1';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
