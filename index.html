@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VideoLooper Pro — Автоматичне дублювання та експорт відео</title>
+  <title>VidLoCraft — цикли, конвертер і створення відео офлайн</title>
   <!-- Everything is inlined so the page also works offline (opened from disk, no internet) -->
   <!-- Tailwind CSS 3.4.17, prebuilt from this page's classes. After changing classes run: node tools/build-css.mjs -->
   <style id="inline-tailwind">
@@ -106,8 +106,8 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
           </svg>
         </div>
         <div>
-          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
-            VideoLooper Pro
+          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300" title="VidLoCraft — Video Local Craft: робота з відео локально, на вашому пристрої">
+            VidLoCraft
           </h1>
           <p class="text-xs text-slate-400">Цикли, конвертер і створення відео — офлайн у браузері</p>
         </div>
@@ -3594,7 +3594,7 @@ self.onmessage = async (e) => {
       exportPercentageText.textContent = `${percent}%`;
       if (status) exportStatusText.textContent = status;
       // Progress in the tab title, so it is visible while working in other tabs
-      document.title = `${percent}% · Експорт — VideoLooper Pro`;
+      document.title = `${percent}% · Експорт — VidLoCraft`;
     }
 
     function setRemainingTime(frac, startTime) {
@@ -4732,7 +4732,7 @@ self.onmessage = async (e) => {
 
         if (document.hidden) {
           finishedInBackground = true;
-          document.title = '✅ Відео готове — VideoLooper Pro';
+          document.title = '✅ Відео готове — VidLoCraft';
           document.addEventListener('visibilitychange', () => { document.title = APP_TITLE; }, { once: true });
         }
       } catch (err) {
@@ -5813,7 +5813,7 @@ self.onmessage = async (e) => {
               if (status) $('jobStatus').textContent = status;
               const elapsed = (performance.now() - startedAt) / 1000;
               $('jobEta').textContent = total > 0.02 ? `≈ ${fmtTime(Math.max(0, elapsed / total - elapsed), false)}` : '';
-              document.title = `${pct}% · ${title} — VideoLooper Pro`;
+              document.title = `${pct}% · ${title} — VidLoCraft`;
             });
             for (const o of result) outputs.push({ ...o, job });
           }
@@ -5836,7 +5836,7 @@ self.onmessage = async (e) => {
         $('jobStatus').textContent = 'Підготовка...';
         $('jobEta').textContent = '';
         if (document.hidden) {
-          document.title = '✅ Готово — VideoLooper Pro';
+          document.title = '✅ Готово — VidLoCraft';
           document.addEventListener('visibilitychange', () => { document.title = APP_TITLE; }, { once: true });
         } else {
           document.title = APP_TITLE;

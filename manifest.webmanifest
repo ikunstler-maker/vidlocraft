@@ -1,6 +1,6 @@
 {
-  "name": "VideoLooper Pro",
-  "short_name": "VideoLooper",
+  "name": "VidLoCraft — Video Local Craft",
+  "short_name": "VidLoCraft",
   "description": "Цикли, конвертер і створення відео — офлайн у браузері",
   "lang": "uk",
   "start_url": "./index.html",
