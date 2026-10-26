@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- MP4 muxer for frame-accurate WebCodecs export -->
   <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+  <!-- MP4 demuxer: reads encoded frames for the no-reencode and worker export modes -->
+  <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -311,6 +313,27 @@
             <hr class="border-slate-800">
 
             <div>
+              <label class="text-sm font-semibold text-white flex items-center mb-2">
+                <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Спосіб експорту
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button type="button" data-mode="copy" class="export-mode-btn p-3 rounded-2xl border text-left transition-all border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300">
+                  <span class="font-semibold text-sm block">⚡ Без перекодування</span>
+                  <span class="text-[11px] text-slate-400 block mt-1 leading-relaxed">Найшвидше: кадри копіюються як є, якість оригіналу. Роздільність і бітрейт не змінюються. Лише MP4/MOV (H.264/H.265).</span>
+                </button>
+                <button type="button" data-mode="reencode" class="export-mode-btn p-3 rounded-2xl border text-left transition-all border-indigo-500 bg-indigo-500/10 text-white">
+                  <span class="font-semibold text-sm block">Декодер + енкодер (у фоні)</span>
+                  <span class="text-[11px] text-slate-400 block mt-1 leading-relaxed">Перекодування з обраною роздільністю та бітрейтом в окремому потоці (Worker). Можна згортати вікно й перемикати вкладки.</span>
+                </button>
+              </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <div id="resolutionSection" class="transition-opacity">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-sm font-semibold text-white flex items-center">
                   <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -359,7 +382,7 @@
 
             <hr class="border-slate-800">
 
-            <div>
+            <div id="bitrateSection" class="transition-opacity">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-sm font-semibold text-white flex items-center">
                   <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,7 +446,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div class="text-[11px] leading-relaxed">
-                <strong class="text-indigo-200">Порада для безперервного рендеру:</strong> не згортайте вкладку у фон. Витягніть її в окреме невелике вікно на екрані, щоб браузер не уповільнював роботу відеокарти та таймерів.
+                <strong class="text-indigo-200">Експорт у фоні:</strong> обидва способи працюють, навіть якщо згорнути вікно або перейти на іншу вкладку — прогрес видно в назві вкладки. Лише не закривайте її до завершення. Файли, які не є MP4/MOV (наприклад, WebM), експортуються сумісним способом — тоді вкладку краще не згортати.
               </div>
             </div>
 
@@ -549,6 +572,7 @@
       duration: 0,
       hasAudio: false,
       loops: 3, // Total playthroughs
+      exportMode: 'reencode', // 'copy' (no re-encoding) | 'reencode' (decoder + encoder in a worker)
       targetPreset: '1080', // '1080', '720', 'source', '480'
       bitrateMbps: 8.0,
       keepAudio: true,
@@ -557,6 +581,9 @@
       exportCancelled: false,
       generatedBlob: null
     };
+
+    const APP_TITLE = document.title;
+    const MP4BOX_URL = 'https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js';
 
     // DOM Elements
     const dropZone = document.getElementById('dropZone');
@@ -766,7 +793,9 @@
 
       // Estimate file size: (bitrate Mbps * 1024 * 1024 / 8 * seconds)
       const mbps = state.bitrateMbps || 0.1;
-      const totalBytes = (mbps * 1000 * 1000 / 8) * totalDuration;
+      const totalBytes = state.exportMode === 'copy' && state.file
+        ? state.file.size * loops
+        : (mbps * 1000 * 1000 / 8) * totalDuration;
       estimatedFileSize.textContent = `~${formatBytes(totalBytes)}`;
     }
 
@@ -1028,6 +1057,33 @@
       });
     });
 
+    // Export mode: copy without re-encoding vs decoder + encoder in a worker
+    function setExportMode(mode) {
+      state.exportMode = mode === 'copy' ? 'copy' : 'reencode';
+      try { localStorage.setItem('vlp-export-mode', state.exportMode); } catch (e) {}
+      document.querySelectorAll('.export-mode-btn').forEach(btn => {
+        btn.className = btn.getAttribute('data-mode') === state.exportMode
+          ? 'export-mode-btn p-3 rounded-2xl border text-left transition-all border-indigo-500 bg-indigo-500/10 text-white'
+          : 'export-mode-btn p-3 rounded-2xl border text-left transition-all border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300';
+      });
+      // Resolution and bitrate don't apply when frames are copied as they are
+      const copy = state.exportMode === 'copy';
+      ['resolutionSection', 'bitrateSection'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.toggle('opacity-40', copy);
+        el.classList.toggle('pointer-events-none', copy);
+      });
+      updateCalculations();
+    }
+
+    document.querySelectorAll('.export-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => setExportMode(btn.getAttribute('data-mode')));
+    });
+    try {
+      const savedMode = localStorage.getItem('vlp-export-mode');
+      if (savedMode) setExportMode(savedMode);
+    } catch (e) {}
+
     // Resolution Buttons
     document.querySelectorAll('.res-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1279,44 +1335,758 @@
       exportProgressBar.style.width = `${percent}%`;
       exportPercentageText.textContent = `${percent}%`;
       if (status) exportStatusText.textContent = status;
+      // Progress in the tab title, so it is visible while working in other tabs
+      document.title = `${percent}% · Експорт — VideoLooper Pro`;
     }
 
-    async function startExport() {
-      if (state.isExporting) return;
-      if (!state.file || !state.duration) {
-        showToast('Спочатку завантажте відеофайл.', 'error');
-        return;
+    function setRemainingTime(frac, startTime) {
+      if (frac <= 0.005) return;
+      const elapsed = (performance.now() - startTime) / 1000;
+      exportTimeRemaining.textContent = `Залишилось: ~${Math.max(0, Math.ceil(elapsed / frac - elapsed))} с`;
+    }
+
+    function outputFileName(totalLoops, suffix) {
+      const baseCleanName = (state.file.name || 'video').replace(/\.[^/.]+$/, '');
+      return `${baseCleanName}_${totalLoops === 1 ? 'converted' : `looped_${totalLoops}x`}_${suffix}.mp4`;
+    }
+
+    // ---- MP4/MOV demuxing with mp4box.js ----
+    // demuxMp4, rotationFromMatrix and pickVideoEncoderConfig are also injected into the export worker
+    // via toString(), so they must not reference anything outside themselves.
+    function demuxMp4(buffer) {
+      return new Promise((resolve, reject) => {
+        const mp4 = MP4Box.createFile();
+        const out = { video: null, audio: null };
+        let ready = false;
+        const boxPayload = (box) => {
+          const stream = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
+          box.write(stream);
+          return new Uint8Array(stream.buffer, 8); // skip the box header
+        };
+        mp4.onError = (e) => reject(new Error(String(e)));
+        mp4.onReady = (info) => {
+          ready = true;
+          const tracks = [['video', info.videoTracks[0]], ['audio', info.audioTracks[0]]];
+          for (const [kind, track] of tracks) {
+            if (!track) continue;
+            const entry = mp4.getTrackById(track.id).mdia.minf.stbl.stsd.entries[0];
+            let description;
+            if (kind === 'video') {
+              const box = entry.avcC || entry.hvcC || entry.av1C;
+              if (box) description = boxPayload(box);
+            } else {
+              const esd = entry.esds && entry.esds.esd;
+              const dsi = esd && esd.descs[0] && esd.descs[0].descs[0];
+              if (dsi && dsi.data) description = new Uint8Array(dsi.data);
+            }
+            out[kind] = { track, description, samples: [] };
+            mp4.setExtractionOptions(track.id, kind, { nbSamples: Infinity });
+          }
+          mp4.start();
+        };
+        mp4.onSamples = (id, kind, samples) => {
+          const list = out[kind].samples;
+          for (const s of samples) list.push(s);
+        };
+        try {
+          buffer.fileStart = 0;
+          mp4.appendBuffer(buffer);
+          mp4.flush();
+        } catch (e) {
+          reject(e);
+          return;
+        }
+        if (!ready) return reject(new Error('not-mp4'));
+        if (!out.video || out.video.samples.length === 0) return reject(new Error('no-video'));
+        resolve(out);
+      });
+    }
+
+    // Adds an edit list (edts/elst) to the video track of a finished MP4 so playback starts at its first frame.
+    // Copied B-frame streams start with a reorder delay that the source hid with its own edit list,
+    // and the muxer doesn't write one, so without this the picture would lag the sound by that delay.
+    function addVideoEditList(buffer, leadUs, durationUs) {
+      const src = new Uint8Array(buffer);
+      const dv = new DataView(buffer);
+      const fourcc = (o) => String.fromCharCode(src[o], src[o + 1], src[o + 2], src[o + 3]);
+      const children = (start, end) => {
+        const out = [];
+        let o = start;
+        while (o + 8 <= end) {
+          let size = dv.getUint32(o);
+          let header = 8;
+          if (size === 1) { size = Number(dv.getBigUint64(o + 8)); header = 16; }
+          else if (size === 0) size = end - o;
+          if (size < header) break;
+          out.push({ type: fourcc(o + 4), start: o, body: o + header, end: Math.min(end, o + size) });
+          o += size;
+        }
+        return out;
+      };
+      const find = (list, type) => list.find(b => b.type === type);
+      const timescaleOf = (box) => dv.getUint32(box.body + (src[box.body] === 1 ? 20 : 12));
+
+      const top = children(0, src.length);
+      const moov = find(top, 'moov');
+      const mdat = find(top, 'mdat');
+      if (!moov || !mdat) return buffer;
+      const moovKids = children(moov.body, moov.end);
+      const movieTimescale = timescaleOf(find(moovKids, 'mvhd'));
+      const traks = moovKids.filter(b => b.type === 'trak');
+
+      let videoTrak = null;
+      let mediaTimescale = 0;
+      for (const trak of traks) {
+        const mdia = find(children(trak.body, trak.end), 'mdia');
+        const mdiaKids = children(mdia.body, mdia.end);
+        if (fourcc(find(mdiaKids, 'hdlr').body + 8) === 'vide') {
+          videoTrak = trak;
+          mediaTimescale = timescaleOf(find(mdiaKids, 'mdhd'));
+        }
       }
-      if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined' || typeof Mp4Muxer === 'undefined') {
-        showToast('Браузер не підтримує WebCodecs — використовується експорт у реальному часі (повільніше). Для швидкого експорту відкрийте в Chrome або Edge.', 'info');
-        return startExportRealtime();
+      if (!videoTrak) return buffer;
+      const tkhd = find(children(videoTrak.body, videoTrak.end), 'tkhd');
+
+      const EDTS_SIZE = 36;
+      const edts = new Uint8Array(EDTS_SIZE);
+      const e = new DataView(edts.buffer);
+      e.setUint32(0, EDTS_SIZE);
+      edts.set([0x65, 0x64, 0x74, 0x73], 4); // 'edts'
+      e.setUint32(8, EDTS_SIZE - 8);
+      edts.set([0x65, 0x6c, 0x73, 0x74], 12); // 'elst', version 0
+      e.setUint32(20, 1); // one entry
+      e.setUint32(24, Math.round(durationUs * movieTimescale / 1e6)); // segment duration (movie timescale)
+      e.setInt32(28, Math.round(leadUs * mediaTimescale / 1e6)); // media time (track timescale)
+      e.setUint32(32, 0x00010000); // rate 1.0
+
+      // Grow the parent boxes; with moov before mdat, every chunk offset moves by the inserted size too
+      dv.setUint32(moov.start, dv.getUint32(moov.start) + EDTS_SIZE);
+      dv.setUint32(videoTrak.start, dv.getUint32(videoTrak.start) + EDTS_SIZE);
+      if (moov.start < mdat.start) {
+        for (const trak of traks) {
+          const mdia = find(children(trak.body, trak.end), 'mdia');
+          const minf = find(children(mdia.body, mdia.end), 'minf');
+          const stbl = find(children(minf.body, minf.end), 'stbl');
+          for (const box of children(stbl.body, stbl.end)) {
+            const count = box.type === 'stco' || box.type === 'co64' ? dv.getUint32(box.body + 4) : 0;
+            for (let i = 0; i < count; i++) {
+              if (box.type === 'stco') {
+                const o = box.body + 8 + i * 4;
+                dv.setUint32(o, dv.getUint32(o) + EDTS_SIZE);
+              } else {
+                const o = box.body + 8 + i * 8;
+                dv.setBigUint64(o, dv.getBigUint64(o) + BigInt(EDTS_SIZE));
+              }
+            }
+          }
+        }
       }
 
+      const out = new Uint8Array(src.length + EDTS_SIZE);
+      out.set(src.subarray(0, tkhd.end), 0);
+      out.set(edts, tkhd.end);
+      out.set(src.subarray(tkhd.end), tkhd.end + EDTS_SIZE);
+      return out.buffer;
+    }
+
+    // Rotation (0/90/180/270) from the track header matrix (16.16 fixed point)
+    function rotationFromMatrix(m) {
+      if (!m) return 0;
+      const deg = Math.round(Math.atan2(m[1], m[0]) * 180 / Math.PI / 90) * 90;
+      return ((deg % 360) + 360) % 360;
+    }
+
+    // ---- Export worker: decode (VideoDecoder) → scale (OffscreenCanvas) → encode (VideoEncoder) ----
+    // Runs off the main thread, so it keeps working at full speed in a background tab or minimized window.
+    function exportWorkerMain() {
+      self.onmessage = async (e) => {
+        const { file, targetW, targetH, fps, bitrate, gop } = e.data;
+        const post = (msg, transfer) => self.postMessage(msg, transfer || []);
+        try {
+          let dm;
+          try {
+            dm = await demuxMp4(await file.arrayBuffer());
+          } catch (err) {
+            post({ type: 'unsupported', reason: String((err && err.message) || err) });
+            return;
+          }
+          const v = dm.video;
+          const decoderConfig = { codec: v.track.codec, codedWidth: v.track.video.width, codedHeight: v.track.video.height };
+          if (v.description) decoderConfig.description = v.description;
+          const support = await VideoDecoder.isConfigSupported(decoderConfig).catch(() => null);
+          if (!support || !support.supported) {
+            post({ type: 'unsupported', reason: 'decoder ' + v.track.codec });
+            return;
+          }
+
+          // Decoded frames come in stored orientation: encode them that way and keep the rotation flag in the output
+          const rotation = rotationFromMatrix(v.track.matrix);
+          const swap = rotation === 90 || rotation === 270;
+          const encW = swap ? targetH : targetW;
+          const encH = swap ? targetW : targetH;
+          const encoderConfig = await pickVideoEncoderConfig(encW, encH, fps, bitrate);
+          if (!encoderConfig) throw new Error('H.264 енкодер недоступний для роздільності ' + encW + '×' + encH);
+
+          const frameDurUs = 1e6 / fps;
+          const total = v.samples.length;
+          const chunks = [];
+          let meta = null;
+          let failure = null;
+          let produced = 0;
+          let canvas = null;
+          let ctx = null;
+
+          const encoder = new VideoEncoder({
+            output: (chunk, m) => {
+              const data = new Uint8Array(chunk.byteLength);
+              chunk.copyTo(data);
+              chunks.push({ data, type: chunk.type, index: Math.round(chunk.timestamp / frameDurUs) });
+              if (m && m.decoderConfig && !meta) meta = m;
+            },
+            error: (err) => { failure = failure || err; }
+          });
+          encoder.configure(encoderConfig);
+
+          const decoder = new VideoDecoder({
+            output: (frame) => {
+              const i = produced++;
+              const init = { timestamp: Math.round(i * frameDurUs), duration: Math.round(frameDurUs) };
+              let out;
+              if (frame.displayWidth === encW && frame.displayHeight === encH) {
+                out = new VideoFrame(frame, init);
+              } else {
+                if (!canvas) {
+                  canvas = new OffscreenCanvas(encW, encH);
+                  ctx = canvas.getContext('2d');
+                  ctx.imageSmoothingQuality = 'high';
+                }
+                ctx.drawImage(frame, 0, 0, encW, encH);
+                out = new VideoFrame(canvas, init);
+              }
+              frame.close();
+              encoder.encode(out, { keyFrame: i % gop === 0 });
+              out.close();
+            },
+            error: (err) => { failure = failure || err; }
+          });
+          decoder.configure(decoderConfig);
+
+          const waitDequeue = (codec) => new Promise(resolve => {
+            const done = () => {
+              codec.removeEventListener('dequeue', done);
+              clearTimeout(timer);
+              resolve();
+            };
+            const timer = setTimeout(done, 10);
+            codec.addEventListener('dequeue', done);
+          });
+
+          let lastPost = 0;
+          for (let n = 0; n < total; n++) {
+            while (!failure && (decoder.decodeQueueSize > 4 || encoder.encodeQueueSize > 16)) {
+              await waitDequeue(encoder.encodeQueueSize > 16 ? encoder : decoder);
+            }
+            if (failure) throw failure;
+            const s = v.samples[n];
+            decoder.decode(new EncodedVideoChunk({
+              type: s.is_sync ? 'key' : 'delta',
+              timestamp: Math.round(s.cts * 1e6 / s.timescale),
+              duration: Math.round(s.duration * 1e6 / s.timescale),
+              data: s.data
+            }));
+            const now = performance.now();
+            if (now - lastPost > 150) {
+              lastPost = now;
+              post({ type: 'progress', done: produced, total });
+            }
+          }
+          await decoder.flush();
+          await encoder.flush();
+          if (failure) throw failure;
+          decoder.close();
+          encoder.close();
+          chunks.sort((a, b) => a.index - b.index);
+          post({ type: 'done', chunks, meta, frameCount: produced, rotation, encW, encH }, chunks.map(c => c.data.buffer));
+        } catch (err) {
+          post({ type: 'error', message: String((err && err.message) || err) });
+        }
+      };
+    }
+
+    function createExportWorker() {
+      const source = [
+        `importScripts(${JSON.stringify(MP4BOX_URL)});`,
+        demuxMp4.toString(),
+        rotationFromMatrix.toString(),
+        pickVideoEncoderConfig.toString(),
+        exportWorkerMain.toString(),
+        'exportWorkerMain();'
+      ].join('\n');
+      const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+      const worker = new Worker(url);
+      return { worker, url };
+    }
+
+    // Encodes one loop in the worker. Resolves null if the file can't be handled there (not MP4/MOV, unknown codec).
+    function encodeLoopInWorker(ctx, params) {
+      return new Promise((resolve, reject) => {
+        let worker, url;
+        try {
+          ({ worker, url } = createExportWorker());
+        } catch (e) {
+          console.warn('Export worker unavailable:', e);
+          resolve(null);
+          return;
+        }
+        const stop = () => {
+          worker.terminate();
+          URL.revokeObjectURL(url);
+        };
+        ctx.onCleanup(stop);
+        ctx.onCancel(() => {
+          stop();
+          reject(new Error('__cancelled__'));
+        });
+        worker.onerror = (e) => {
+          // A failed importScripts (mp4box.js not reachable) lands here
+          console.warn('Export worker failed:', e.message);
+          e.preventDefault();
+          stop();
+          resolve(null);
+        };
+        worker.onmessage = (e) => {
+          const msg = e.data;
+          if (msg.type === 'progress') {
+            const frac = (msg.done / msg.total) * 0.6;
+            setExportProgress(frac, `Кодування у фоновому потоці: кадр ${msg.done} з ${msg.total}`);
+            liveMonitorCycle.textContent = `Кадр: ${msg.done} / ${msg.total}`;
+            setRemainingTime(frac, ctx.startTime);
+          } else if (msg.type === 'unsupported') {
+            console.warn('Worker export unsupported for this file:', msg.reason);
+            stop();
+            resolve(null);
+          } else if (msg.type === 'error') {
+            stop();
+            reject(new Error(msg.message));
+          } else if (msg.type === 'done') {
+            stop();
+            if (!msg.meta || msg.chunks.length === 0) {
+              reject(new Error('Енкодер не повернув жодного кадру'));
+              return;
+            }
+            resolve({
+              videoChunks: msg.chunks,
+              videoMeta: msg.meta,
+              frameCount: msg.frameCount,
+              rotation: msg.rotation,
+              width: msg.encW,
+              height: msg.encH
+            });
+          }
+        };
+        worker.postMessage({ file: state.file, ...params });
+      });
+    }
+
+    // Compatible path (any format the <video> element plays): seek to every frame and draw it on a canvas.
+    // Runs on the main thread, so it slows down heavily in a background tab.
+    async function encodeLoopBySeeking(ctx, { targetW, targetH, fps, frameCount, bitrate, gop, baseDuration }) {
+      const videoConfig = await pickVideoEncoderConfig(targetW, targetH, fps, bitrate);
+      if (!videoConfig) throw new Error('H.264 енкодер недоступний для роздільності ' + targetW + '×' + targetH);
+      exportCanvas.width = targetW;
+      exportCanvas.height = targetH;
+
+      const frameDurUs = 1e6 / fps;
+      const videoChunks = [];
+      let videoMeta = null;
+      let encoderError = null;
+      const videoEncoder = new VideoEncoder({
+        output: (chunk, meta) => {
+          const data = new Uint8Array(chunk.byteLength);
+          chunk.copyTo(data);
+          videoChunks.push({ data, type: chunk.type, index: Math.round(chunk.timestamp / frameDurUs) });
+          if (meta && meta.decoderConfig && !videoMeta) videoMeta = meta;
+        },
+        error: (e) => { encoderError = e; }
+      });
+      ctx.onCleanup(() => { if (videoEncoder.state !== 'closed') videoEncoder.close(); });
+      videoEncoder.configure(videoConfig);
+
+      exportVideoElement.pause();
+      exportVideoElement.muted = true;
+
+      for (let i = 0; i < frameCount; i++) {
+        ctx.checkCancelled();
+        if (encoderError) throw encoderError;
+
+        const t = Math.min(Math.max(0, baseDuration - 0.001), (i + 0.25) / fps);
+        await seekVideo(exportVideoElement, t);
+        canvasCtx.drawImage(exportVideoElement, 0, 0, targetW, targetH);
+
+        const frame = new VideoFrame(exportCanvas, {
+          timestamp: Math.round(i * frameDurUs),
+          duration: Math.round(frameDurUs)
+        });
+        videoEncoder.encode(frame, { keyFrame: i % gop === 0 });
+        frame.close();
+
+        while (videoEncoder.encodeQueueSize > 8) await yieldTask();
+
+        const frac = (i + 1) / frameCount * 0.6;
+        setExportProgress(frac, `Кодування кадрів циклу: ${i + 1} з ${frameCount} (${fps} fps)`);
+        liveMonitorCycle.textContent = `Кадр: ${i + 1} / ${frameCount}`;
+        setRemainingTime(frac, ctx.startTime);
+      }
+      await videoEncoder.flush();
+      if (encoderError) throw encoderError;
+      videoEncoder.close();
+      if (!videoMeta || videoChunks.length === 0) throw new Error('Енкодер не повернув жодного кадру');
+      videoChunks.sort((a, b) => a.index - b.index);
+      return { videoChunks, videoMeta, frameCount, rotation: 0, width: targetW, height: targetH };
+    }
+
+    // Audio: decode once, loop PCM to the exact video length, encode
+    async function encodeLoopedAudio(ctx, loopDurationSec) {
+      let audioChunks = [];
+      let audioMuxInfo = null;
+      const totalLoops = ctx.totalLoops;
+      setExportProgress(0.62, 'Обробка аудіодоріжки...');
+      const audioBuffer = await decodeSourceAudio(state.file);
+      ctx.checkCancelled();
+      if (!audioBuffer || audioBuffer.length === 0) return { audioChunks, audioMuxInfo };
+
+      const sr = audioBuffer.sampleRate;
+      const channels = Math.min(2, audioBuffer.numberOfChannels);
+      const audioOpt = await pickAudioEncoderConfig(sr, channels);
+      if (!audioOpt) {
+        showToast('Аудіоенкодер недоступний — відео буде без звуку.', 'info');
+        return { audioChunks, audioMuxInfo };
+      }
+
+      const loopSamples = Math.max(1, Math.round(loopDurationSec * sr));
+      const loopPcm = [];
+      for (let c = 0; c < channels; c++) {
+        const ch = new Float32Array(loopSamples);
+        const src = audioBuffer.getChannelData(c);
+        ch.set(src.subarray(0, Math.min(src.length, loopSamples)));
+        loopPcm.push(ch);
+      }
+
+      let audioError = null;
+      let audioMeta = null;
+      const audioEncoder = new AudioEncoder({
+        output: (chunk, meta) => {
+          if (meta && meta.decoderConfig && !audioMeta) audioMeta = meta;
+          audioChunks.push({ chunk, meta: audioMeta && audioChunks.length === 0 ? audioMeta : undefined });
+        },
+        error: (e) => { audioError = e; }
+      });
+      ctx.onCleanup(() => { if (audioEncoder.state !== 'closed') audioEncoder.close(); });
+      audioEncoder.configure(audioOpt.cfg);
+
+      const totalSamples = loopSamples * totalLoops;
+      const block = sr; // 1 second per AudioData
+      let blockCount = 0;
+      for (let offset = 0; offset < totalSamples; offset += block) {
+        ctx.checkCancelled();
+        if (audioError) throw audioError;
+        const frames = Math.min(block, totalSamples - offset);
+        const planar = new Float32Array(frames * channels);
+        for (let c = 0; c < channels; c++) {
+          const src = loopPcm[c];
+          const base = c * frames;
+          let pos = (offset % loopSamples);
+          let written = 0;
+          while (written < frames) {
+            const n = Math.min(frames - written, loopSamples - pos);
+            planar.set(src.subarray(pos, pos + n), base + written);
+            written += n;
+            pos = 0;
+          }
+        }
+        const audioData = new AudioData({
+          format: 'f32-planar',
+          sampleRate: sr,
+          numberOfFrames: frames,
+          numberOfChannels: channels,
+          timestamp: Math.round(offset * 1e6 / sr),
+          data: planar
+        });
+        audioEncoder.encode(audioData);
+        audioData.close();
+        while (audioEncoder.encodeQueueSize > 16) await yieldTask();
+        if (++blockCount % 20 === 0) {
+          setExportProgress(0.62 + (offset / totalSamples) * 0.2, `Кодування аудіо: ${formatTime(offset / sr)} з ${formatTime(totalSamples / sr)}`);
+          await yieldTask();
+        }
+      }
+      await audioEncoder.flush();
+      if (audioError) throw audioError;
+      audioEncoder.close();
+      if (audioChunks.length > 0 && audioChunks[0].meta) {
+        audioMuxInfo = { codec: audioOpt.muxCodec, numberOfChannels: channels, sampleRate: sr };
+      } else {
+        audioChunks = [];
+      }
+      return { audioChunks, audioMuxInfo };
+    }
+
+    // Export mode "Декодер + енкодер": encode ONE loop (in the worker, or by seeking as a fallback),
+    // then repeat the encoded frames with shifted timestamps for every loop.
+    async function exportByReencode(ctx) {
+      const { targetW, targetH, totalLoops } = ctx;
+      const baseDuration = state.duration;
+      const bitrate = Math.round(state.bitrateMbps * 1000 * 1000);
+
+      // ---- 1. Frame rate ----
+      setExportProgress(0, 'Аналіз частоти кадрів...');
+      const info = state.videoInfo || await readContainerVideoInfo(state.file);
+      const fps = info ? info.fps : await detectFrameRate(exportVideoElement);
+      ctx.checkCancelled();
+      const frameDurUs = 1e6 / fps;
+      const gop = Math.max(1, Math.round(fps * 2)); // keyframe every ~2 s for smooth seeking
+
+      // ---- 2. Encode one loop ----
+      let encoded = null;
+      if (typeof Worker !== 'undefined' && typeof VideoDecoder !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
+        setExportProgress(0.01, 'Розбір відеофайлу...');
+        encoded = await encodeLoopInWorker(ctx, { targetW, targetH, fps, bitrate, gop });
+        if (!encoded) {
+          showToast('Для цього файлу фоновий режим недоступний — використовується сумісний. Не згортайте вкладку до завершення.', 'info');
+        }
+      }
+      ctx.checkCancelled();
+      if (!encoded) {
+        const frameCount = info ? info.frameCount : Math.max(1, Math.round(baseDuration * fps));
+        encoded = await encodeLoopBySeeking(ctx, { targetW, targetH, fps, frameCount, bitrate, gop, baseDuration });
+      }
+      const { videoChunks, videoMeta, frameCount } = encoded;
+      const loopDurationSec = frameCount / fps;
+      const loopDurationUs = Math.round(frameCount * frameDurUs);
+
+      // ---- 3. Audio ----
+      const { audioChunks, audioMuxInfo } = state.keepAudio
+        ? await encodeLoopedAudio(ctx, loopDurationSec)
+        : { audioChunks: [], audioMuxInfo: null };
+
+      // ---- 4. Mux: repeat encoded loop with shifted timestamps ----
+      const target = new Mp4Muxer.ArrayBufferTarget();
+      const muxer = new Mp4Muxer.Muxer({
+        target,
+        video: {
+          codec: 'avc',
+          width: encoded.width,
+          height: encoded.height,
+          rotation: encoded.rotation,
+          frameRate: Number.isInteger(fps) ? fps : undefined // the muxer only accepts integer rates
+        },
+        audio: audioMuxInfo || undefined,
+        fastStart: 'in-memory',
+        firstTimestampBehavior: 'offset'
+      });
+
+      let audioIdx = 0;
+      for (let k = 0; k < totalLoops; k++) {
+        ctx.checkCancelled();
+        for (let j = 0; j < videoChunks.length; j++) {
+          const c = videoChunks[j];
+          const g = k * frameCount + c.index;
+          const ts = Math.round(g * frameDurUs);
+          const dur = Math.round((g + 1) * frameDurUs) - ts;
+          muxer.addVideoChunkRaw(c.data, c.type, ts, dur, (k === 0 && j === 0) ? videoMeta : undefined);
+        }
+        const loopEndUs = (k + 1) * loopDurationUs;
+        while (audioMuxInfo && audioIdx < audioChunks.length && audioChunks[audioIdx].chunk.timestamp < loopEndUs) {
+          const a = audioChunks[audioIdx++];
+          muxer.addAudioChunk(a.chunk, a.meta);
+        }
+        setExportProgress(0.82 + ((k + 1) / totalLoops) * 0.16, `Збирання відео: цикл ${k + 1} з ${totalLoops}`);
+        liveMonitorCycle.textContent = `Цикл: ${k + 1} / ${totalLoops}`;
+        if (k % 5 === 0) await yieldTask();
+      }
+      while (audioMuxInfo && audioIdx < audioChunks.length) {
+        const a = audioChunks[audioIdx++];
+        muxer.addAudioChunk(a.chunk, a.meta);
+      }
+
+      setExportProgress(0.99, 'Завершення збирання MP4...');
+      await yieldTask();
+      muxer.finalize();
+
+      return {
+        blob: new Blob([target.buffer], { type: 'video/mp4' }),
+        durationSec: loopDurationSec * totalLoops,
+        fileName: outputFileName(totalLoops, `${targetH}p_${state.bitrateMbps}Mbps`)
+      };
+    }
+
+    // Export mode "Без перекодування": copy the encoded samples (video + AAC audio) as they are,
+    // repeating them with shifted timestamps. No decoding or encoding, so it takes seconds.
+    async function exportByCopy(ctx) {
+      const { totalLoops } = ctx;
+      if (typeof MP4Box === 'undefined') {
+        throw new Error('Бібліотека mp4box.js не завантажилась — перевірте інтернет-з\'єднання та оновіть сторінку.');
+      }
+      setExportProgress(0.02, 'Розбір відеофайлу...');
+      let dm;
+      try {
+        dm = await demuxMp4(await state.file.arrayBuffer());
+      } catch (e) {
+        console.warn('Demux failed:', e);
+        throw new Error('Цей файл не можна експортувати без перекодування (потрібен MP4 або MOV). Оберіть спосіб «Декодер + енкодер».');
+      }
+      ctx.checkCancelled();
+
+      const v = dm.video;
+      const vCodec = v.track.codec || '';
+      const muxVideoCodec = /^(avc1|avc3)/.test(vCodec) ? 'avc' : (/^(hvc1|hev1)/.test(vCodec) ? 'hevc' : null);
+      if (!muxVideoCodec || !v.description) {
+        throw new Error(`Кодек відео «${vCodec}» не підтримується без перекодування. Оберіть спосіб «Декодер + енкодер».`);
+      }
+
+      const vts = v.track.timescale;
+      const vs = v.samples;
+      const dts0 = vs[0].dts;
+      // Keep composition offsets non-negative (the muxer writes unsigned ctts)
+      let shift = 0;
+      let ctsMin = Infinity;
+      for (const s of vs) {
+        if (s.dts - s.cts > shift) shift = s.dts - s.cts;
+        if (s.cts < ctsMin) ctsMin = s.cts;
+      }
+      const last = vs[vs.length - 1];
+      const loopUs = (last.dts + last.duration - dts0) * 1e6 / vts;
+      const leadUs = (ctsMin - dts0 + shift) * 1e6 / vts; // time of the first displayed frame (B-frame delay), cut by an edit list
+
+      // Audio: copy AAC as is; other codecs are re-encoded (or dropped if no encoder)
+      let rawAudio = null;
+      let encodedAudio = null;
+      if (state.keepAudio && dm.audio && dm.audio.samples.length > 0) {
+        const a = dm.audio;
+        if ((a.track.codec || '').startsWith('mp4a.40')) {
+          const ats = a.track.timescale;
+          const a0 = a.samples[0].cts;
+          const sampleRate = a.track.audio.sample_rate;
+          const numberOfChannels = a.track.audio.channel_count;
+          const decoderConfig = { codec: a.track.codec, sampleRate, numberOfChannels };
+          if (a.description) decoderConfig.description = a.description;
+          rawAudio = {
+            muxInfo: { codec: 'aac', sampleRate, numberOfChannels },
+            meta: { decoderConfig },
+            // Only the part that fits into one video loop, so audio never drifts from the picture
+            samples: a.samples
+              .map(s => ({ data: s.data, rel: (s.cts - a0) * 1e6 / ats, dur: Math.round(s.duration * 1e6 / ats) }))
+              .filter(s => s.rel < loopUs)
+          };
+        } else {
+          encodedAudio = await encodeLoopedAudio(ctx, loopUs / 1e6);
+          if (!encodedAudio.audioMuxInfo) encodedAudio = null;
+        }
+      }
+      ctx.checkCancelled();
+
+      const target = new Mp4Muxer.ArrayBufferTarget();
+      const muxer = new Mp4Muxer.Muxer({
+        target,
+        video: {
+          codec: muxVideoCodec,
+          width: v.track.video.width,
+          height: v.track.video.height,
+          rotation: rotationFromMatrix(v.track.matrix)
+        },
+        audio: rawAudio ? rawAudio.muxInfo : (encodedAudio ? encodedAudio.audioMuxInfo : undefined),
+        fastStart: 'in-memory',
+        firstTimestampBehavior: 'cross-track-offset'
+      });
+
+      const vMeta = {
+        decoderConfig: {
+          codec: vCodec,
+          codedWidth: v.track.video.width,
+          codedHeight: v.track.video.height,
+          description: v.description
+        }
+      };
+
+      let audioIdx = 0;
+      for (let k = 0; k < totalLoops; k++) {
+        ctx.checkCancelled();
+        const base = k * loopUs;
+        for (let j = 0; j < vs.length; j++) {
+          const s = vs[j];
+          const pts = Math.round(base + (s.cts - dts0 + shift) * 1e6 / vts);
+          const dts = Math.round(base + (s.dts - dts0) * 1e6 / vts);
+          muxer.addVideoChunkRaw(s.data, s.is_sync ? 'key' : 'delta', pts, Math.round(s.duration * 1e6 / vts),
+            (k === 0 && j === 0) ? vMeta : undefined, pts - dts);
+        }
+        if (rawAudio) {
+          for (let j = 0; j < rawAudio.samples.length; j++) {
+            const s = rawAudio.samples[j];
+            muxer.addAudioChunkRaw(s.data, 'key', Math.round(base + s.rel), s.dur,
+              (k === 0 && j === 0) ? rawAudio.meta : undefined);
+          }
+        } else if (encodedAudio) {
+          const chunks = encodedAudio.audioChunks;
+          const loopEndUs = (k + 1) * loopUs;
+          while (audioIdx < chunks.length && chunks[audioIdx].chunk.timestamp < loopEndUs) {
+            const a = chunks[audioIdx++];
+            muxer.addAudioChunk(a.chunk, a.meta);
+          }
+        }
+        setExportProgress(0.05 + ((k + 1) / totalLoops) * 0.93, `Копіювання кадрів без перекодування: цикл ${k + 1} з ${totalLoops}`);
+        liveMonitorCycle.textContent = `Цикл: ${k + 1} / ${totalLoops}`;
+        if (k % 10 === 0) await yieldTask();
+      }
+      if (encodedAudio) {
+        const chunks = encodedAudio.audioChunks;
+        while (audioIdx < chunks.length) {
+          const a = chunks[audioIdx++];
+          muxer.addAudioChunk(a.chunk, a.meta);
+        }
+      }
+
+      setExportProgress(0.99, 'Завершення збирання MP4...');
+      await yieldTask();
+      muxer.finalize();
+      const output = leadUs > 0 ? addVideoEditList(target.buffer, leadUs, loopUs * totalLoops) : target.buffer;
+
+      return {
+        blob: new Blob([output], { type: 'video/mp4' }),
+        durationSec: loopUs * totalLoops / 1e6,
+        fileName: outputFileName(totalLoops, 'original')
+      };
+    }
+
+    // Shared export shell: progress modal, cancel, wake lock, result dialog
+    async function runExport(job) {
       state.isExporting = true;
       state.exportCancelled = false;
 
       const { width: targetW, height: targetH } = calculateTargetDimensions(state.targetPreset);
-      exportCanvas.width = targetW;
-      exportCanvas.height = targetH;
+      const cleanups = [];
+      const cancelHandlers = [];
+      const ctx = {
+        targetW,
+        targetH,
+        totalLoops: state.loops,
+        startTime: performance.now(),
+        checkCancelled: () => {
+          if (state.exportCancelled) throw new Error('__cancelled__');
+        },
+        onCleanup: (fn) => cleanups.push(fn),
+        onCancel: (fn) => cancelHandlers.push(fn)
+      };
 
       progressModal.classList.remove('hidden');
-      setExportProgress(0, 'Аналіз частоти кадрів...');
+      setExportProgress(0, 'Підготовка...');
       exportTimeRemaining.textContent = 'Залишилось: розрахунок...';
       liveMonitorCycle.textContent = `Цикл: 1 / ${state.loops}`;
-
-      const totalLoops = state.loops;
-      const baseDuration = state.duration;
-      const bitrateBps = Math.round(state.bitrateMbps * 1000 * 1000);
-      const exportStartTime = performance.now();
-
-      const checkCancelled = () => {
-        if (state.exportCancelled) throw new Error('__cancelled__');
-      };
 
       cancelExportBtn.onclick = () => {
         state.exportCancelled = true;
         progressModal.classList.add('hidden');
         showToast('Експорт скасовано користувачем.', 'info');
+        cancelHandlers.forEach(fn => { try { fn(); } catch (e) {} });
       };
 
       let wakeLockSentinel = null;
@@ -1326,223 +2096,60 @@
         console.debug('WakeLock not granted:', wlErr);
       }
 
-      let videoEncoder = null;
-      let audioEncoder = null;
-
+      let finishedInBackground = false;
       try {
-        // ---- 1. Frame rate & encoder setup ----
-        const info = state.videoInfo || await readContainerVideoInfo(state.file);
-        const fps = info ? info.fps : await detectFrameRate(exportVideoElement);
-        checkCancelled();
-        const frameCount = info ? info.frameCount : Math.max(1, Math.round(baseDuration * fps));
-        const frameDurUs = 1e6 / fps;
-        const loopDurationSec = frameCount / fps;
-        const loopDurationUs = Math.round(frameCount * frameDurUs);
+        const result = await job(ctx);
+        ctx.checkCancelled();
+        state.generatedBlob = result.blob;
 
-        const videoConfig = await pickVideoEncoderConfig(targetW, targetH, fps, bitrateBps);
-        if (!videoConfig) throw new Error('H.264 енкодер недоступний для роздільності ' + targetW + '×' + targetH);
-
-        // ---- 2. Encode ONE loop, frame by frame ----
-        const videoChunks = [];
-        let videoMeta = null;
-        let encoderError = null;
-        videoEncoder = new VideoEncoder({
-          output: (chunk, meta) => {
-            const data = new Uint8Array(chunk.byteLength);
-            chunk.copyTo(data);
-            videoChunks.push({ data, type: chunk.type, index: Math.round(chunk.timestamp / frameDurUs) });
-            if (meta && meta.decoderConfig && !videoMeta) videoMeta = meta;
-          },
-          error: (e) => { encoderError = e; }
-        });
-        videoEncoder.configure(videoConfig);
-
-        const gop = Math.max(1, Math.round(fps * 2)); // keyframe every ~2 s for smooth seeking
-        exportVideoElement.pause();
-        exportVideoElement.muted = true;
-
-        for (let i = 0; i < frameCount; i++) {
-          checkCancelled();
-          if (encoderError) throw encoderError;
-
-          const t = Math.min(Math.max(0, baseDuration - 0.001), (i + 0.25) / fps);
-          await seekVideo(exportVideoElement, t);
-          canvasCtx.drawImage(exportVideoElement, 0, 0, targetW, targetH);
-
-          const frame = new VideoFrame(exportCanvas, {
-            timestamp: Math.round(i * frameDurUs),
-            duration: Math.round(frameDurUs)
-          });
-          videoEncoder.encode(frame, { keyFrame: i % gop === 0 });
-          frame.close();
-
-          while (videoEncoder.encodeQueueSize > 8) await yieldTask();
-
-          setExportProgress((i + 1) / frameCount * 0.6, `Кодування кадрів циклу: ${i + 1} з ${frameCount} (${fps} fps)`);
-          liveMonitorCycle.textContent = `Кадр: ${i + 1} / ${frameCount}`;
-          const elapsed = (performance.now() - exportStartTime) / 1000;
-          const frac = (i + 1) / frameCount * 0.6;
-          exportTimeRemaining.textContent = `Залишилось: ~${Math.ceil(elapsed / frac - elapsed)} с`;
-        }
-        await videoEncoder.flush();
-        if (encoderError) throw encoderError;
-        videoEncoder.close();
-        videoEncoder = null;
-        if (!videoMeta || videoChunks.length === 0) throw new Error('Енкодер не повернув жодного кадру');
-        videoChunks.sort((a, b) => a.index - b.index);
-
-        // ---- 3. Audio: decode once, loop PCM to exact video length, encode ----
-        let audioChunks = [];
-        let audioMuxInfo = null;
-        if (state.keepAudio) {
-          setExportProgress(0.62, 'Обробка аудіодоріжки...');
-          const audioBuffer = await decodeSourceAudio(state.file);
-          checkCancelled();
-          if (audioBuffer && audioBuffer.length > 0) {
-            const sr = audioBuffer.sampleRate;
-            const channels = Math.min(2, audioBuffer.numberOfChannels);
-            const audioOpt = await pickAudioEncoderConfig(sr, channels);
-            if (audioOpt) {
-              const loopSamples = Math.max(1, Math.round(loopDurationSec * sr));
-              const loopPcm = [];
-              for (let c = 0; c < channels; c++) {
-                const ch = new Float32Array(loopSamples);
-                const src = audioBuffer.getChannelData(c);
-                ch.set(src.subarray(0, Math.min(src.length, loopSamples)));
-                loopPcm.push(ch);
-              }
-
-              let audioError = null;
-              let audioMeta = null;
-              audioEncoder = new AudioEncoder({
-                output: (chunk, meta) => {
-                  if (meta && meta.decoderConfig && !audioMeta) audioMeta = meta;
-                  audioChunks.push({ chunk, meta: audioMeta && audioChunks.length === 0 ? audioMeta : undefined });
-                },
-                error: (e) => { audioError = e; }
-              });
-              audioEncoder.configure(audioOpt.cfg);
-
-              const totalSamples = loopSamples * totalLoops;
-              const block = sr; // 1 second per AudioData
-              let blockCount = 0;
-              for (let offset = 0; offset < totalSamples; offset += block) {
-                checkCancelled();
-                if (audioError) throw audioError;
-                const frames = Math.min(block, totalSamples - offset);
-                const planar = new Float32Array(frames * channels);
-                for (let c = 0; c < channels; c++) {
-                  const src = loopPcm[c];
-                  const base = c * frames;
-                  let pos = (offset % loopSamples);
-                  let written = 0;
-                  while (written < frames) {
-                    const n = Math.min(frames - written, loopSamples - pos);
-                    planar.set(src.subarray(pos, pos + n), base + written);
-                    written += n;
-                    pos = 0;
-                  }
-                }
-                const audioData = new AudioData({
-                  format: 'f32-planar',
-                  sampleRate: sr,
-                  numberOfFrames: frames,
-                  numberOfChannels: channels,
-                  timestamp: Math.round(offset * 1e6 / sr),
-                  data: planar
-                });
-                audioEncoder.encode(audioData);
-                audioData.close();
-                while (audioEncoder.encodeQueueSize > 16) await yieldTask();
-                if (++blockCount % 20 === 0) {
-                  setExportProgress(0.62 + (offset / totalSamples) * 0.2, `Кодування аудіо: ${formatTime(offset / sr)} з ${formatTime(totalSamples / sr)}`);
-                  await yieldTask();
-                }
-              }
-              await audioEncoder.flush();
-              if (audioError) throw audioError;
-              audioEncoder.close();
-              audioEncoder = null;
-              if (audioChunks.length > 0 && audioChunks[0].meta) {
-                audioMuxInfo = { codec: audioOpt.muxCodec, numberOfChannels: channels, sampleRate: sr };
-              } else {
-                audioChunks = [];
-              }
-            } else {
-              showToast('Аудіоенкодер недоступний — відео буде без звуку.', 'info');
-            }
-          }
-        }
-
-        // ---- 4. Mux: repeat encoded loop with shifted timestamps ----
-        const target = new Mp4Muxer.ArrayBufferTarget();
-        const muxer = new Mp4Muxer.Muxer({
-          target,
-          video: { codec: 'avc', width: targetW, height: targetH, frameRate: fps },
-          audio: audioMuxInfo || undefined,
-          fastStart: 'in-memory',
-          firstTimestampBehavior: 'offset'
-        });
-
-        let audioIdx = 0;
-        for (let k = 0; k < totalLoops; k++) {
-          checkCancelled();
-          for (let j = 0; j < videoChunks.length; j++) {
-            const c = videoChunks[j];
-            const g = k * frameCount + c.index;
-            const ts = Math.round(g * frameDurUs);
-            const dur = Math.round((g + 1) * frameDurUs) - ts;
-            muxer.addVideoChunkRaw(c.data, c.type, ts, dur, (k === 0 && j === 0) ? videoMeta : undefined);
-          }
-          const loopEndUs = (k + 1) * loopDurationUs;
-          while (audioMuxInfo && audioIdx < audioChunks.length && audioChunks[audioIdx].chunk.timestamp < loopEndUs) {
-            const a = audioChunks[audioIdx++];
-            muxer.addAudioChunk(a.chunk, a.meta);
-          }
-          setExportProgress(0.82 + ((k + 1) / totalLoops) * 0.16, `Збирання відео: цикл ${k + 1} з ${totalLoops}`);
-          liveMonitorCycle.textContent = `Цикл: ${k + 1} / ${totalLoops}`;
-          if (k % 5 === 0) await yieldTask();
-        }
-        while (audioMuxInfo && audioIdx < audioChunks.length) {
-          const a = audioChunks[audioIdx++];
-          muxer.addAudioChunk(a.chunk, a.meta);
-        }
-
-        setExportProgress(0.99, 'Завершення збирання MP4...');
-        await yieldTask();
-        muxer.finalize();
-
-        const blob = new Blob([target.buffer], { type: 'video/mp4' });
-        state.generatedBlob = blob;
-
-        const generatedUrl = URL.createObjectURL(blob);
+        const generatedUrl = URL.createObjectURL(result.blob);
         finishedVideoPreview.src = generatedUrl;
-        finalDurationLabel.textContent = formatTime(loopDurationSec * totalLoops);
-        finalFileSizeLabel.textContent = formatBytes(blob.size);
-
-        const baseCleanName = (state.file.name || 'video').replace(/\.[^/.]+$/, '');
+        finalDurationLabel.textContent = formatTime(result.durationSec);
+        finalFileSizeLabel.textContent = formatBytes(result.blob.size);
         downloadVideoBtn.href = generatedUrl;
-        downloadVideoBtn.download = `${baseCleanName}_${totalLoops === 1 ? 'converted' : `looped_${totalLoops}x`}_${targetH}p_${state.bitrateMbps}Mbps.mp4`;
+        downloadVideoBtn.download = result.fileName;
 
         exportProgressBar.style.width = '100%';
         exportPercentageText.textContent = '100%';
         progressModal.classList.add('hidden');
         completeModal.classList.remove('hidden');
         showToast('Відео успішно згенеровано!', 'success');
+
+        if (document.hidden) {
+          finishedInBackground = true;
+          document.title = '✅ Відео готове — VideoLooper Pro';
+          document.addEventListener('visibilitychange', () => { document.title = APP_TITLE; }, { once: true });
+        }
       } catch (err) {
         if (err && err.message === '__cancelled__') return;
         console.error('Export failed:', err);
         progressModal.classList.add('hidden');
         showToast('Помилка експорту: ' + (err && err.message ? err.message : err), 'error');
       } finally {
-        try { if (videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close(); } catch (e) {}
-        try { if (audioEncoder && audioEncoder.state !== 'closed') audioEncoder.close(); } catch (e) {}
+        cleanups.forEach(fn => { try { fn(); } catch (e) {} });
         exportVideoElement.pause();
         state.isExporting = false;
+        if (!finishedInBackground) document.title = APP_TITLE;
         if (wakeLockSentinel) {
           try { wakeLockSentinel.release(); } catch (e) {}
         }
       }
+    }
+
+    function startExport() {
+      if (state.isExporting) return;
+      if (!state.file || !state.duration) {
+        showToast('Спочатку завантажте відеофайл.', 'error');
+        return;
+      }
+      if (state.exportMode === 'copy' && typeof Mp4Muxer !== 'undefined') {
+        return runExport(exportByCopy);
+      }
+      if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined' || typeof Mp4Muxer === 'undefined') {
+        showToast('Браузер не підтримує WebCodecs — використовується експорт у реальному часі (повільніше). Для швидкого експорту відкрийте в Chrome або Edge.', 'info');
+        return startExportRealtime();
+      }
+      return runExport(exportByReencode);
     }
 
     // Fallback for browsers without WebCodecs: real-time recording at 1x (MediaRecorder records wall-clock time)
