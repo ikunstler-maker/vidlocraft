@@ -112,6 +112,30 @@
           Обрати відеофайл
         </button>
       </div>
+
+      <!-- Load by URL -->
+      <form id="urlLoadForm" class="mt-5 p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <label for="videoUrlInput" class="text-sm font-semibold text-white flex items-center mb-2">
+          <svg class="w-4 h-4 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          Або додайте відео за посиланням
+        </label>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="url" id="videoUrlInput" placeholder="https://example.com/video.mp4" required
+            class="flex-1 min-w-0 text-sm text-white bg-slate-800 border border-slate-700 focus:border-indigo-500 rounded-xl py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-500">
+          <button type="submit" id="urlLoadBtn"
+            class="px-5 py-2.5 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-wait text-white shadow-lg shadow-indigo-600/30 transition-all whitespace-nowrap">
+            Завантажити
+          </button>
+        </div>
+        <p id="urlLoadStatus" class="text-[11px] text-slate-500 mt-2 leading-relaxed">
+          Пряме посилання на файл (.mp4, .webm, .mov). Сервер має дозволяти завантаження з інших сайтів (CORS) — посилання на YouTube, Instagram чи TikTok не підтримуються.
+        </p>
+        <button type="button" id="backToEditorBtn" class="hidden mt-3 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+          ← Повернутися до редактора
+        </button>
+      </form>
     </section>
 
     <section id="editorSection" class="hidden space-y-6">
@@ -136,9 +160,14 @@
           </div>
         </div>
 
-        <button id="changeVideoBtn" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700">
-          Завантажити інше відео
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="changeVideoUrlBtn" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700">
+            Відео за посиланням
+          </button>
+          <button id="changeVideoBtn" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700">
+            Завантажити інше відео
+          </button>
+        </div>
       </div>
 
       <!-- Main Editor Grid: Left = Preview, Right = Looping & Export Controls -->
@@ -233,7 +262,7 @@
                 </label>
                 <div class="flex items-center space-x-2">
                   <button type="button" id="btnMinusLoop" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-lg active:scale-95 transition-all">-</button>
-                  <input type="number" id="loopNumberInput" min="2" max="5000" value="3" step="1"
+                  <input type="number" id="loopNumberInput" min="1" max="5000" value="3" step="1"
                     class="w-20 text-center font-bold text-white text-base bg-slate-800 border border-slate-700 focus:border-indigo-500 rounded-lg py-1 px-1 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     title="Введіть точну кількість повторень вручну">
                   <button type="button" id="btnPlusLoop" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-lg active:scale-95 transition-all">+</button>
@@ -241,12 +270,13 @@
               </div>
 
               <!-- Slider for Loop Count (Scalable up to 500+ repetitions) -->
-              <input type="range" id="loopSlider" min="2" max="500" value="3" step="1"
+              <input type="range" id="loopSlider" min="1" max="500" value="3" step="1"
                 class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
               
               <!-- Preset repetitions -->
               <div class="flex flex-wrap items-center gap-1.5 mt-3">
                 <span class="text-[11px] text-slate-400 font-medium mr-1">Цикли:</span>
+                <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="1" title="Без зациклювання — лише конвертація">1x (конвертер)</button>
                 <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="2">2x</button>
                 <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white transition-colors" data-loops="3">3x</button>
                 <button type="button" class="preset-loop-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors" data-loops="5">5x</button>
@@ -715,18 +745,24 @@
       // Update calculations UI
       calcBaseTime.textContent = formatTime(baseDuration);
       calcAddedTime.textContent = `+${addedDuration.toFixed(1)} с`;
-      calcAddedLoops.textContent = `+${repeatsAdded} ${repeatsAdded === 1 ? 'дубль' : (repeatsAdded < 5 ? 'дублі' : 'дублів')}`;
+      calcAddedLoops.textContent = repeatsAdded === 0
+        ? 'без дублів'
+        : `+${repeatsAdded} ${repeatsAdded === 1 ? 'дубль' : (repeatsAdded < 5 ? 'дублі' : 'дублів')}`;
       calcTotalTime.textContent = formatTime(totalDuration);
       calcTotalSeconds.textContent = `${totalDuration.toFixed(1)} с підсумок`;
 
-      badgeLoopMultiplier.textContent = `Всього ${loops} відтворень (1x + ${repeatsAdded}x)`;
+      badgeLoopMultiplier.textContent = loops === 1
+        ? '1x — лише конвертація, без зациклювання'
+        : `Всього ${loops} відтворень (1x + ${repeatsAdded}x)`;
 
       // Timeline visual distribution
-      const initialPercent = Math.max(5, (1 / loops) * 100);
+      const initialPercent = loops === 1 ? 100 : Math.max(5, (1 / loops) * 100);
       const dupPercent = 100 - initialPercent;
       barInitial.style.width = `${initialPercent}%`;
       barDuplicates.style.width = `${dupPercent}%`;
-      barDuplicatesLabel.textContent = `Дублі: ${repeatsAdded} повт. (+${addedDuration.toFixed(1)} с)`;
+      barDuplicatesLabel.textContent = repeatsAdded === 0
+        ? 'Без дублів'
+        : `Дублі: ${repeatsAdded} повт. (+${addedDuration.toFixed(1)} с)`;
 
       // Estimate file size: (bitrate Mbps * 1024 * 1024 / 8 * seconds)
       const mbps = state.bitrateMbps || 0.1;
@@ -846,9 +882,94 @@
       videoFileInput.click();
     });
 
+    // Load video by URL: download it into a local File so the export pipeline works the same way
+    const urlLoadForm = document.getElementById('urlLoadForm');
+    const videoUrlInput = document.getElementById('videoUrlInput');
+    const urlLoadBtn = document.getElementById('urlLoadBtn');
+    const urlLoadStatus = document.getElementById('urlLoadStatus');
+    const urlLoadHint = urlLoadStatus.textContent;
+    const changeVideoUrlBtn = document.getElementById('changeVideoUrlBtn');
+
+    function guessVideoMime(name, headerType) {
+      if (headerType && headerType.startsWith('video/')) return headerType.split(';')[0];
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      return { webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/mp4', mkv: 'video/x-matroska', ogv: 'video/ogg' }[ext] || 'video/mp4';
+    }
+
+    async function loadVideoFromUrl(rawUrl) {
+      let url;
+      try {
+        url = new URL(rawUrl.trim());
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error();
+      } catch (e) {
+        showToast('Невірне посилання. Вставте пряме посилання http(s) на відеофайл.', 'error');
+        return;
+      }
+
+      urlLoadBtn.disabled = true;
+      urlLoadBtn.textContent = 'Завантаження...';
+      urlLoadStatus.textContent = 'Підключення...';
+      try {
+        const res = await fetch(url.href);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const total = parseInt(res.headers.get('Content-Length'), 10) || 0;
+        let blob;
+        if (res.body && res.body.getReader) {
+          const reader = res.body.getReader();
+          const parts = [];
+          let received = 0;
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            parts.push(value);
+            received += value.length;
+            urlLoadStatus.textContent = total
+              ? `Завантажено ${formatBytes(received)} з ${formatBytes(total)} (${Math.round(received / total * 100)}%)`
+              : `Завантажено ${formatBytes(received)}`;
+          }
+          blob = new Blob(parts);
+        } else {
+          blob = await res.blob();
+        }
+
+        let name = decodeURIComponent(url.pathname.split('/').pop() || '') || 'video';
+        const type = guessVideoMime(name, res.headers.get('Content-Type'));
+        if (!/\.[a-z0-9]{2,4}$/i.test(name)) name += type === 'video/webm' ? '.webm' : '.mp4';
+        loadVideoFile(new File([blob], name, { type }));
+        videoUrlInput.value = '';
+        urlLoadStatus.textContent = urlLoadHint;
+      } catch (err) {
+        console.error('URL load failed:', err);
+        urlLoadStatus.textContent = urlLoadHint;
+        showToast('Не вдалося завантажити відео за посиланням. Перевірте, що це пряме посилання на файл і сервер дозволяє доступ (CORS).', 'error');
+      } finally {
+        urlLoadBtn.disabled = false;
+        urlLoadBtn.textContent = 'Завантажити';
+      }
+    }
+
+    urlLoadForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      loadVideoFromUrl(videoUrlInput.value);
+    });
+
+    const backToEditorBtn = document.getElementById('backToEditorBtn');
+
+    changeVideoUrlBtn.addEventListener('click', () => {
+      editorSection.classList.add('hidden');
+      uploadSection.classList.remove('hidden');
+      backToEditorBtn.classList.remove('hidden');
+      videoUrlInput.focus();
+    });
+
+    backToEditorBtn.addEventListener('click', () => {
+      uploadSection.classList.add('hidden');
+      editorSection.classList.remove('hidden');
+    });
+
     // Loops Counter supporting direct manual typing and values up to 5000+
     function setLoopCount(val, skipInputUpdate = false) {
-      const num = Math.min(5000, Math.max(2, parseInt(val, 10) || 2));
+      const num = Math.min(5000, Math.max(1, parseInt(val, 10) || 1));
       state.loops = num;
 
       if (!skipInputUpdate && loopNumberInput) {
@@ -880,8 +1001,8 @@
 
     loopNumberInput.addEventListener('blur', (e) => {
       const val = parseInt(e.target.value, 10);
-      if (isNaN(val) || val < 2) {
-        setLoopCount(2);
+      if (isNaN(val) || val < 1) {
+        setLoopCount(1);
       } else {
         setLoopCount(val);
       }
@@ -900,7 +1021,7 @@
       btn.addEventListener('click', () => {
         const targetSecs = parseFloat(btn.getAttribute('data-seconds'));
         const baseDuration = state.duration || 8.0; // fallback to 8s if not yet loaded
-        const calculatedLoops = Math.max(2, Math.round(targetSecs / baseDuration));
+        const calculatedLoops = Math.max(1, Math.round(targetSecs / baseDuration));
         
         setLoopCount(calculatedLoops);
         showToast(`Встановлено ${calculatedLoops} циклів під тривалість ~${formatTime(calculatedLoops * baseDuration)}`, 'info');
@@ -1401,7 +1522,7 @@
 
         const baseCleanName = (state.file.name || 'video').replace(/\.[^/.]+$/, '');
         downloadVideoBtn.href = generatedUrl;
-        downloadVideoBtn.download = `${baseCleanName}_looped_${totalLoops}x_${targetH}p_${state.bitrateMbps}Mbps.mp4`;
+        downloadVideoBtn.download = `${baseCleanName}_${totalLoops === 1 ? 'converted' : `looped_${totalLoops}x`}_${targetH}p_${state.bitrateMbps}Mbps.mp4`;
 
         exportProgressBar.style.width = '100%';
         exportPercentageText.textContent = '100%';
@@ -1683,7 +1804,7 @@
           finalFileSizeLabel.textContent = formatBytes(blob.size);
 
           const baseCleanName = (state.file.name || 'video').replace(/\.[^/.]+$/, "");
-          const outName = `${baseCleanName}_looped_${totalLoops}x_${targetH}p_${state.bitrateMbps}Mbps.${ext}`;
+          const outName = `${baseCleanName}_${totalLoops === 1 ? 'converted' : `looped_${totalLoops}x`}_${targetH}p_${state.bitrateMbps}Mbps.${ext}`;
           downloadVideoBtn.href = generatedUrl;
           downloadVideoBtn.download = outName;
 
