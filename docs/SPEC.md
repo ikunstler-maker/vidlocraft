@@ -30,8 +30,8 @@ Files are never uploaded; the page works without internet, opened straight from 
 | File info, strip metadata, before/after compare | v1 | |
 | Write straight to disk, auto-save | v1 | File System Access API (Chrome/Edge) |
 | PWA, "Open with" | v1 | Live on GitHub Pages |
-| Interactive scale / resolution / aspect tiles, crop on preview, trim timeline with filmstrip and scrubbing | v2 | Built as components reused by the editor |
-| English UI (UK/EN switch) | v2 | |
+| Interactive scale / resolution / aspect tiles, crop on preview, trim timeline with filmstrip and scrubbing | v2 | Done; reuse in the editor |
+| English UI (UK/EN switch) | v2 | Done: header switch, remembered, default from browser language |
 | Timeline editor | v2+ | See `docs/editor-plan.md` |
 | CI with browser tests | v2 | |
 

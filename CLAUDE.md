@@ -21,7 +21,10 @@ Unsure between two modes → name both with the trade-off (speed vs usage) and r
   `node tools/build-css.mjs` (styles) and `node tools/build-libs.mjs` (libraries).
 - User files never leave the device: no servers, analytics or uploads.
 - The owner is not a developer: explain briefly, plain Ukrainian, address as «ви», technical terms explained in brackets.
-- UI in Ukrainian and English. Code, comments, names and commits in English.
+- UI in Ukrainian and English. Ukrainian text in `index.html` is the source; English lives in `tools/i18n-en.json`.
+  After adding or changing UI text: `node tools/i18n.mjs` (lists untranslated), add translations, `node tools/i18n.mjs --inline`.
+  Strings built from pieces work via patterns (`{0}`) and word/unit fallbacks; user content gets `translate="no"`.
+- Code, comments, names and commits in English.
 - Raise risky, costly or irreversible requirements before starting.
 - Log every owner decision as a row in `docs/decisions.md` (date | topic | decision).
 - When the owner must act: step-by-step (site → section → button → what to paste).
