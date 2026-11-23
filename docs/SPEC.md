@@ -1,54 +1,51 @@
-# VidLoCraft — специфікація
+# VidLoCraft — specification
 
-## Мета
-VidLoCraft (Video Local Craft) — набір інструментів для відео й звуку, що працює повністю у браузері, на пристрої
-користувачки. Файли нікуди не завантажуються, сторінка працює без інтернету, відкрита просто з диска.
-Застосунок замінює для простих задач монтажну програму й онлайн-конвертери.
+## Goal
+VidLoCraft (Video Local Craft) is a set of video and audio tools that runs entirely in the browser on the user's device.
+Files are never uploaded; the page works without internet, opened straight from disk. It replaces an editing app and online converters for simple jobs.
 
-## Для кого
-- Власниця (моушн-дизайнерка): зациклення кліпів, конвертація, підготовка відео для соцмереж.
-- Пізніше — будь-хто, хто відкриє застосунок із сайту чи встановить його як PWA.
+## Users
+- The owner (motion designer): looping clips, converting, preparing video for social media.
+- Later: anyone opening it from the website (GitHub Pages) or installing it as a PWA.
 
-## Версії
-- **v1 (зроблено)** — функції з таблиці нижче.
-- **v2** — автоматичні перевірки (CI), публікація на GitHub Pages, тексти інтерфейсу в одному словнику.
-- **Пізніше** — ffmpeg.wasm для старих форматів (AVI, WMV, ProRes), стабілізація, шумоподавлення:
-  великий розмір і повільно, свідомо відкладено.
+## Versions
+- **v1 (done)** — features below marked v1.
+- **v2** — interactive converter (scale, resolution, aspect, trim timeline), English UI, timeline editor stage 1.
+- **Later** — AI features (auto captions, background removal without green screen); ffmpeg.wasm for legacy formats (AVI, WMV, ProRes).
 
-## Функції
-| Функція | Версія | Коментар |
+## Features
+| Feature | Version | Note |
 |---|---|---|
-| Цикли: N повторень, 1× як конвертер, без перекодування / з перекодуванням у фоні / компактний файл | v1 | Вкладка «Цикли» |
-| Додавання відео за посиланням | v1 | Лише прямі посилання з дозволеним CORS |
-| Конвертер: формати, кодеки, якість, бітрейт, розмір, роздільність, кадри/с, пресети | v1 | Пакетна обробка всього списку |
-| Обрізка, поділ на частини | v1 | |
-| Поворот, віддзеркалення, кадрування, формат 9:16 з полями, колір | v1 | |
-| Логотип, текст, вшиті субтитри SRT/VTT | v1 | |
-| Швидкість зі збереженням висоти тону, реверс | v1 | |
-| Звук: витягнути, прибрати, замінити, змішати, гучність, вирівнювання, переходи | v1 | |
-| Кадри, ZIP кадрів, аркуш мініатюр, GIF, анімований WebP | v1 | |
-| Склеювання відео | v1 | Завжди перекодовує |
-| Створення відео з картинок і звуку | v1 | |
-| Інформація про файл, видалення метаданих | v1 | |
-| Порівняння «до / після» | v1 | |
-| Запис одразу на диск, автозбереження | v1 | File System Access API (Chrome / Edge) |
-| PWA, «Відкрити за допомогою» | v1 | Потрібен https-хостинг |
-| CI з тестами в браузері | v2 | |
-| Словник текстів інтерфейсу | v2 | |
+| Loops: N repeats, 1× as converter, copy / re-encode in background / compact file | v1 | "Цикли" tab |
+| Add video by URL | v1 | Direct links with CORS only |
+| Converter: formats, codecs, quality, bitrate, target size, resolution, fps, presets, batch | v1 | |
+| Trim, split into parts | v1 | |
+| Rotate, flip, crop, 9:16 canvas with fill, colour | v1 | |
+| Logo, text, burnt-in SRT/VTT subtitles | v1 | |
+| Speed with pitch kept, reverse | v1 | |
+| Audio: extract, remove, replace, mix, volume, normalize, fades | v1 | |
+| Frames, ZIP of frames, contact sheet, GIF, animated WebP | v1 | |
+| Merge videos | v1 | Always re-encodes |
+| Create video from images and audio | v1 | |
+| File info, strip metadata, before/after compare | v1 | |
+| Write straight to disk, auto-save | v1 | File System Access API (Chrome/Edge) |
+| PWA, "Open with" | v1 | Live on GitHub Pages |
+| Interactive scale / resolution / aspect tiles, crop on preview, trim timeline with filmstrip and scrubbing | v2 | Built as components reused by the editor |
+| English UI (UK/EN switch) | v2 | |
+| Timeline editor | v2+ | See `docs/editor-plan.md` |
+| CI with browser tests | v2 | |
 
-## Безпека й доступи
-- Немає сервера, акаунтів і ключів. Усі файли обробляються локально.
-- Налаштування зберігаються лише в браузері користувачки (localStorage, ключі `vlp-…`).
-- Ризик: зовнішні бібліотеки вбудовані в код — оновлювати лише перевіреними версіями через `tools/build-libs.mjs`.
+## Security and access
+- No server, accounts or keys. All processing is local.
+- Settings live only in the user's browser (localStorage, `vlp-…` keys).
+- Risk: libraries are inlined — update only to checked versions via `tools/build-libs.mjs`.
 
-## Етапи реалізації (наступні)
-1. **CI.** GitHub Actions запускає перевірку синтаксису й сценарії Playwright на кожен PR.
-   **Готово, коли:** у PR видно «N з N перевірок пройшли», а зламаний скрипт дає червону перевірку.
-2. **Публікація на GitHub Pages.** **Готово, коли:** застосунок відкривається за адресою сайту
-   і встановлюється як PWA в Chrome.
-3. **Словник текстів.** **Готово, коли:** усі тексти інтерфейсу лежать в одному об'єкті, а в розмітці — лише ключі.
+## Next stages
+1. **Interactive converter.** Scale/resolution tiles with live size, aspect tiles with crop/fit toggle and fill, crop and position by dragging/pinching on the preview, trim timeline with filmstrip, waveform, draggable handles, scrubbing and zoom; numbers folded into "Exact values".
+   **Done when:** a trim, an aspect change and a scale change are done without typing a number, on desktop and on a 390 px phone screen, and the output matches.
+2. **English UI.** **Done when:** switching UK/EN changes every visible string, the choice is remembered, and the default follows the browser language.
+3. **Editor stage 1** (see `docs/editor-plan.md`).
+4. **CI.** **Done when:** each PR shows "N of N checks passed" and a broken script turns a check red.
 
-## Що підготувати і відкриті питання
-- [ ] Перейменувати репозиторій на `vidlocraft` (GitHub → Settings → Repository name).
-- [ ] Чи вмикати GitHub Pages і з якою адресою.
-- [ ] Чи потрібна англійська версія інтерфейсу.
+## Open questions
+- [ ] Is the repository public (GitHub Pages on a private repo needs a paid plan)?

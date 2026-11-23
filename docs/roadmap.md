@@ -1,9 +1,9 @@
-# Дорожня карта
+# Roadmap
 
-Чернетка. Повну версію складемо за розділом 9 playbook, коли вирішимо про публікацію.
+Draft. A full version (playbook section 9) once the editor's first stages are done.
 
-1. **CI** — автоматичні перевірки на кожен PR (синтаксис, Playwright, ffprobe).
-2. **GitHub Pages** — публічна адреса, встановлення як PWA.
-3. **Словник текстів інтерфейсу** — підготовка до англійської версії.
-4. **Монтажний редактор** — 8 етапів, див. [editor-plan.md](editor-plan.md).
-5. **Пізніше** — ffmpeg.wasm для старих форматів (лише як запасний шлях).
+1. **Interactive converter** — scale, resolution, aspect, trim timeline (in progress).
+2. **English UI** — UK/EN switch.
+3. **Timeline editor** — stages in `docs/editor-plan.md` (AI parts postponed).
+4. **CI** — checks on every PR (syntax, Playwright, ffprobe).
+5. **Later** — AI captions and background removal (free-licence models), ffmpeg.wasm as a fallback for legacy formats.
