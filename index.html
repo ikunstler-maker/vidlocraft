@@ -131,6 +131,7 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
     <nav class="flex gap-1 p-1 mb-6 rounded-2xl bg-slate-900/60 border border-slate-800 overflow-x-auto" role="tablist" aria-label="Інструменти">
       <button type="button" class="vl-tab is-active" data-tab="loops">🔁 Цикли</button>
       <button type="button" class="vl-tab" data-tab="media">🎬 Конвертер</button>
+      <button type="button" class="vl-tab" data-tab="edit">✂ Монтаж</button>
       <button type="button" class="vl-tab" data-tab="create">🧩 Створити відео</button>
     </nav>
 
@@ -1167,6 +1168,11 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
       </div>
     </section>
 
+    <!-- ===== Timeline editor ===== -->
+    <section id="tab-edit" class="hidden">
+<!--EDITOR_UI-->
+    </section>
+
     <!-- ===== Create video from images (+ audio) ===== -->
     <section id="tab-create" class="hidden">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1396,6 +1402,15 @@ var Log=function(){var i=new Date,r=4;return{setLogLevel:function(t){r=t==this.d
   </main>
 
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- Timeline editor: shared core (runs here and in the media worker) -->
+  <script id="editor-shared">
+/*EDITOR_SHARED*/
+  </script>
+  <!-- Timeline editor export, appended to the media worker (not executed here) -->
+  <script type="text/x-worker" id="worker-editor">
+/*EDITOR_WORKER*/
+  </script>
 
   <!-- Converter worker code: not executed here, it is started as a Web Worker together with lib-media -->
   <script type="text/x-worker" id="worker-media">
@@ -5217,12 +5232,13 @@ self.onmessage = async (e) => {
       }
 
       // ---------- tabs ----------
-      const tabSections = { loops: $('tab-loops'), media: $('tab-media'), create: $('tab-create') };
+      const tabSections = { loops: $('tab-loops'), media: $('tab-media'), edit: $('tab-edit'), create: $('tab-create') };
       function showTab(name) {
         if (!tabSections[name]) name = 'loops';
         for (const [key, el] of Object.entries(tabSections)) el.classList.toggle('hidden', key !== name);
         document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('is-active', b.dataset.tab === name));
         storage.set('vlp-tab', name);
+        if (name === 'edit' && window.VLEditor && VLEditor.initEditor) VLEditor.initEditor();
       }
       document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
       showTab(storage.get('vlp-tab', 'loops'));
@@ -6390,7 +6406,7 @@ self.onmessage = async (e) => {
       let workerUrl = null;
       const workerScript = () => {
         if (!workerUrl) {
-          const source = $('lib-media').textContent + '\n' + $('worker-media').textContent;
+          const source = [$('lib-media'), $('editor-shared'), $('worker-media'), $('worker-editor')].map(el => el.textContent).join('\n');
           workerUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
         }
         return workerUrl;
@@ -6446,6 +6462,8 @@ self.onmessage = async (e) => {
         });
       }
 
+      // also used by the timeline editor's export
+      window.vlpRunJobs = (...a) => runJobs(...a);
       async function runJobs(jobs, { title, outputCount, suggestedName, compare }) {
         const out = await chooseOutput(outputCount, suggestedName);
         if (!out) return;
