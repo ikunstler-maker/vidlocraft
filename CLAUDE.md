@@ -1,52 +1,42 @@
 # VidLoCraft (Video Local Craft)
 
-Офлайн-застосунок у браузері: цикли відео, конвертер, кадри й GIF, склеювання, створення відео.
-`docs/SPEC.md` — єдине джерело правди, з поправками з `docs/decisions.md` (рішення власниці).
-Якщо запит суперечить їм — спершу спитай.
+Offline in-browser app: video loops, converter, frames & GIF, merge, create video; next — a timeline editor.
+`docs/SPEC.md` is the source of truth, amended by `docs/decisions.md` (owner's decisions). If a request contradicts them, ask first.
+Docs in `docs/` are in English to save tokens. Talk to the owner in Ukrainian. `docs/agents.md` stays Ukrainian (the owner pastes it).
+`docs/editor-research.md` (Ukrainian, long) — read only the section a task needs.
 
-## Розподіл задачі (перша відповідь на кожну нову задачу)
-Визнач режим і напиши один рядок українською: `Режим: <режим> — <чому, ≤10 слів>`.
-Для режимів B–D чекай OK власниці.
-- A. Один агент — одна мета, послідовні кроки, ≤~10 файлів. Просто роби.
-- B. Субагенти — 2–5 незалежних перевірок чи досліджень, звіти треба звести. Виконавці: `sonnet-worker` (`.claude/agents/`).
-- C. Workflow — багато схожих елементів (≥20 файлів/записів), міграція, аудит усього коду. Масову роботу — на Sonnet; Opus — план і підсумок.
-- D. Фільтр → Workflow — великі або «брудні» дані. Спершу детермінований скрипт відсіює шум; на Sonnet іде лише залишок. Після кожного етапу — кількість.
-Якщо вагаєшся між двома режимами — назви обидва з компромісом (швидкість / витрати) і порадь один.
-Ultracode і max effort — лише на прохання. Звичайне зусилля — medium.
+## Task triage (first reply to every new task)
+State one line in Ukrainian: `Режим: <mode> — <why, ≤10 words>`. Wait for the owner's OK before modes B–D.
+- A. Single agent — one goal, sequential steps, ≤~10 files. Just do it.
+- B. Subagents — 2–5 independent checks or research threads to merge. Workers: `sonnet-worker` (`.claude/agents/`).
+- C. Workflow — many similar items (≥20), migration, codebase-wide audit, cross-checked research. Bulk on Sonnet; Opus plans and synthesizes.
+- D. Filter → Workflow — large/dirty data: a deterministic script drops noise first; only the rest goes to a Sonnet workflow. Report counts per stage.
+Unsure between two modes → name both with the trade-off (speed vs usage) and recommend one. No ultracode / max effort unless asked; default effort medium.
 
-## Як працюємо
-- Етап за етапом (SPEC → «Етапи»): план → OK власниці → код → перевірка «Готово, коли» → commit/PR.
-- Лише поточна версія. Позначене «Пізніше» не будуємо, але архітектурно не блокуємо.
-- Стек фіксований: один файл `index.html` (HTML + Tailwind CSS + JavaScript без фреймворків),
-  вбудовані бібліотеки Mediabunny, MP3-кодувальник LAME, gifenc, mp4box.js; PWA (`manifest.webmanifest`, `sw.js`).
-  Нову бібліотеку чи сервіс — лише з OK.
-- Застосунок має працювати офлайн, відкритий просто з диска: жодних CDN і зовнішніх запитів.
-  Бібліотеки й стилі — лише вбудовані; після змін перезбирати:
-  `node tools/build-css.mjs` (стилі), `node tools/build-libs.mjs` (бібліотеки).
-- Файли користувачів ніколи не залишають пристрій: жодних серверів, аналітики чи відправлення даних.
-- Власниця не професійна розробниця: пояснюй рішення коротко, простою мовою, українською.
-  Звертайся на «ви». Технічні терміни — з поясненням у дужках.
-- Інтерфейс українською. Код, коментарі, назви й коміти — англійською.
-- Ризиковані, дорогі чи незворотні вимоги — піднімай до початку роботи.
-- Кожне рішення власниці записуй рядком у `docs/decisions.md` (дата | тема | рішення).
-- Коли від власниці потрібна дія — покрокова інструкція: сайт → розділ → кнопка → що вставити.
-- Складну архітектуру чи концепцію — пропонуй схему або HTML-сторінку замість довгого тексту.
-- На прохання «STE» — пояснення в стилі ASD-STE100: короткі речення, одна думка в кожному.
+## How we work
+- Stage by stage (SPEC → stages): plan → owner's OK → code → "Done when" check → commit/PR.
+- Current version only; "Later" items are not built but not blocked architecturally.
+- Fixed stack: single `index.html` (HTML + Tailwind CSS + vanilla JS), inlined Mediabunny, LAME MP3 encoder, gifenc, mp4box.js; PWA (`manifest.webmanifest`, `sw.js`). New library or service only with OK.
+- Must work offline, opened from disk: no CDN or external requests. Libraries and styles are inlined; rebuild with
+  `node tools/build-css.mjs` (styles) and `node tools/build-libs.mjs` (libraries).
+- User files never leave the device: no servers, analytics or uploads.
+- The owner is not a developer: explain briefly, plain Ukrainian, address as «ви», technical terms explained in brackets.
+- UI in Ukrainian and English. Code, comments, names and commits in English.
+- Raise risky, costly or irreversible requirements before starting.
+- Log every owner decision as a row in `docs/decisions.md` (date | topic | decision).
+- When the owner must act: step-by-step (site → section → button → what to paste).
+- Hard concept or architecture → offer a diagram or HTML page instead of long text. On request "STE" → ASD-STE100 style.
 
-## Злиття PR (правило власниці)
-- Дозвіл на автоматичне злиття дається разом з OK на план. Без нього не зливай.
-- Зливай лише свої PR і лише після перевірок; чернетки й прототипи — ніколи.
-  Після злиття скажи, що саме змінилося в застосунку.
-- «Небезпечне» злиття — окреме попередження і окреме «так» або «зроблю сама»:
-  втрата збережених налаштувань користувачів (ключі `vlp-…` у localStorage), зміна service worker,
-  через яку встановлений застосунок може не оновитися, усе, що складно відкотити.
+## Merging PRs (owner's rule)
+- Auto-merge permission comes with the OK on a plan. Without it, do not merge.
+- Merge only own PRs, only after checks pass; never drafts or prototypes. After merging, say what changed in the app.
+- "Dangerous" merge → separate warning and a separate «так» / «зроблю сама»: losing users' saved settings (`vlp-…` keys in localStorage),
+  service worker changes that may stop the installed app from updating, anything hard to roll back.
 
-## Секрети
-- Застосунок не використовує ключів чи акаунтів. Якщо колись знадобляться — лише публічні ключі в браузері,
-  секретні — в GitHub → Settings → Secrets. Ніколи не проси надіслати секрет у чат.
+## Secrets
+- The app uses no keys or accounts. If ever needed: only public keys in the browser; secret ones in GitHub → Settings → Secrets. Never ask for a secret in chat.
 
-## Перевірки
-- Автоматичного CI поки немає (план — у `docs/roadmap.md`).
-- Перед здачею: перевірка синтаксису всіх `<script>`, відкриття сторінки з диска без мережі без помилок у консолі,
-  сценарії в браузері (Playwright), результати медіафайлів — через ffprobe/ffmpeg.
-  Результат — чесно, з цифрами; що не вдалося перевірити — назвати.
+## Checks
+- No CI yet (planned in `docs/roadmap.md`).
+- Before handing over: syntax check of every `<script>`, page opened from disk offline with no console errors, browser scenarios (Playwright),
+  media outputs checked with ffprobe/ffmpeg. Report honestly with numbers; name what could not be checked.
