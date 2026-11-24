@@ -32,7 +32,7 @@ Files are never uploaded; the page works without internet, opened straight from 
 | PWA, "Open with" | v1 | Live on GitHub Pages |
 | Interactive scale / resolution / aspect tiles, crop on preview, trim timeline with filmstrip and scrubbing | v2 | Done; reuse in the editor |
 | English UI (UK/EN switch) | v2 | Done: header switch, remembered, default from browser language |
-| Timeline editor | v2+ | Stage 1 done ("✂ Монтаж" tab); next stages in `docs/editor-plan.md` |
+| Timeline editor | v2+ | Stages 1–2 done ("✂ Монтаж" tab: tracks, media library, audio, flexible export); next stages in `docs/editor-plan.md` |
 | CI with browser tests | v2 | |
 
 ## Security and access
@@ -44,7 +44,7 @@ Files are never uploaded; the page works without internet, opened straight from 
 1. **Interactive converter.** Scale/resolution tiles with live size, aspect tiles with crop/fit toggle and fill, crop and position by dragging/pinching on the preview, trim timeline with filmstrip, waveform, draggable handles, scrubbing and zoom; numbers folded into "Exact values".
    **Done when:** a trim, an aspect change and a scale change are done without typing a number, on desktop and on a 390 px phone screen, and the output matches.
 2. **English UI.** **Done when:** switching UK/EN changes every visible string, the choice is remembered, and the default follows the browser language.
-3. ~~**Editor stage 1**~~ — done (see `docs/editor-plan.md`). Next: editor stage 2 (audio).
+3. ~~**Editor stage 1**~~ — done (see `docs/editor-plan.md`). Editor stage 2 (audio, unlimited tracks, media library, flexible export) — done. Next: editor stage 3 (text).
 4. **CI.** **Done when:** each PR shows "N of N checks passed" and a broken script turns a check red.
 
 ## Open questions

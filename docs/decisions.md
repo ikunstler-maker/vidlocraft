@@ -23,3 +23,4 @@
 | 2026-11-23 | Editor: templates | Optional; try the mechanism plus a few ready templates. |
 | 2026-11-23 | Editor stage 1 | Built in orchestration mode (owner's request). Hidden tracks are silent too. Media kept in the browser's IndexedDB. |
 | 2026-11-24 | Merging PRs | Always merge own PRs when all checks are green. "Dangerous" merges still need a separate warning and «так». |
+| 2026-11-24 | Editor stage 2 | Orchestration mode. Unlimited tracks; export as flexible as the converter (incl. frames/GIF); separate media library tab in the editor (pre-fill, drag to timeline any time). CC0 music library postponed. |
