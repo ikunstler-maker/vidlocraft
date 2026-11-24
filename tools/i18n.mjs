@@ -16,7 +16,9 @@ const norm = (s) => s.replace(/\s+/g, ' ').trim();
 
 export function extract(html) {
   const found = new Set();
-  const add = (s) => { s = norm(s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"')); if (CYR.test(s)) found.add(s); };
+  // code fragments that only look like text (a template split around markup) are skipped
+  const CODE = /\$\{|\b(?:T|esc|row|ic)\(/;
+  const add = (s) => { s = norm(s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"')); if (CYR.test(s) && !CODE.test(s)) found.add(s); };
   // app and worker scripts (not the inlined libraries or the dictionary itself)
   const scripts = [];
   let markup = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/g, (m, attrs, body) => {

@@ -24,6 +24,8 @@ Unsure between two modes → name both with the trade-off (speed vs usage) and r
 - UI in Ukrainian and English. Ukrainian text in `index.html` is the source; English lives in `tools/i18n-en.json`.
   After adding or changing UI text: `node tools/i18n.mjs` (lists untranslated), add translations, `node tools/i18n.mjs --inline`.
   Strings built from pieces work via patterns (`{0}`) and word/unit fallbacks; user content gets `translate="no"`.
+- Icons: own SVG set only (`tools/icons/*.svg`, 24×24 stroke) → `node tools/build-icons.mjs` rebuilds the sprite; use `VLIcon.svg(name)` / `VLIcon.draw`.
+  No emoji in the UI; icon-only buttons need `title` + `aria-label`; icons are siblings of text, never inside translatable strings.
 - Code, comments, names and commits in English.
 - Raise risky, costly or irreversible requirements before starting.
 - Log every owner decision as a row in `docs/decisions.md` (date | topic | decision).
@@ -40,7 +42,7 @@ Unsure between two modes → name both with the trade-off (speed vs usage) and r
 - The app uses no keys or accounts. If ever needed: only public keys in the browser; secret ones in GitHub → Settings → Secrets. Never ask for a secret in chat.
 
 ## Checks
-- CI: GitHub Actions `.github/workflows/ci.yml` runs `tests/` (syntax, i18n, converter, editor, project file, proxies, UI) on every PR and push to main.
+- CI: GitHub Actions `.github/workflows/ci.yml` runs `tests/` (syntax, i18n, converter, editor, project file, proxies, icons, menus, UI) on every PR and push to main.
   Locally: `node tests/run.mjs` (needs Playwright + ffmpeg). Add a scenario to `tests/` for every new feature.
 - Before handing over: syntax check of every `<script>`, page opened from disk offline with no console errors, browser scenarios (Playwright),
   media outputs checked with ffprobe/ffmpeg. Report honestly with numbers; name what could not be checked.
