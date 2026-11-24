@@ -31,7 +31,7 @@ Unsure between two modes → name both with the trade-off (speed vs usage) and r
 - Hard concept or architecture → offer a diagram or HTML page instead of long text. On request "STE" → ASD-STE100 style.
 
 ## Merging PRs (owner's rule)
-- Auto-merge permission comes with the OK on a plan. Without it, do not merge.
+- Standing permission (owner, 2026-11-24): merge own PRs whenever all checks are green — no need to ask each time.
 - Merge only own PRs, only after checks pass; never drafts or prototypes. After merging, say what changed in the app.
 - "Dangerous" merge → separate warning and a separate «так» / «зроблю сама»: losing users' saved settings (`vlp-…` keys in localStorage),
   service worker changes that may stop the installed app from updating, anything hard to roll back.
