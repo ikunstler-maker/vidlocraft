@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ROOT } from './lib.mjs';
 
 const only = process.argv.slice(2);
-const suites = (only.length ? only : ['syntax', 'i18n', 'converter', 'editor', 'ui']);
+const suites = (only.length ? only : ['syntax', 'i18n', 'converter', 'editor', 'projectfile', 'proxy', 'ui']);
 let failed = [];
 for (const s of suites) {
   console.log(`\n=== ${s} ===`);
