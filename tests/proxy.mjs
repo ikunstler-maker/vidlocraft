@@ -93,6 +93,7 @@ try {
 
   // settings UI
   await page.click('#edSettingsBtn');
+  await page.waitForFunction(() => { const b = document.querySelector('#edSettingsPop [data-ed-proxy-mode="auto"]'); return b && b.classList.contains('is-active'); }, null, { timeout: 2000 }).catch(() => {});
   const chips = await page.$$eval('#edSettingsPop [data-ed-proxy-mode]', (b) => b.map(x => x.textContent.trim() + (x.classList.contains('is-active') ? '*' : '')));
   t.check('settings: «Плавний перегляд» chips', chips.join('|') === 'Авто*|Завжди|Вимкнено', chips.join('|'));
   await page.click('#edSettingsPop [data-ed-proxy-mode="on"]');
