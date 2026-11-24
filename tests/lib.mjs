@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const PAGE = pathToFileURL(join(ROOT, 'index.html')).href;
+export const PAGE = process.env.VLC_PAGE || pathToFileURL(join(ROOT, 'index.html')).href;
 export const MEDIA = join(ROOT, 'tests', '.media');
 export const OUT = join(ROOT, 'tests', '.out');
 
