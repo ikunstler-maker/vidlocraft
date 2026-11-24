@@ -21,3 +21,5 @@
 | 2026-11-23 | Editor: stage order | As planned. |
 | 2026-11-23 | Editor: music | User's own audio; connect a free (CC0) sound library if one fits offline. |
 | 2026-11-23 | Editor: templates | Optional; try the mechanism plus a few ready templates. |
+| 2026-11-23 | Editor stage 1 | Built in orchestration mode (owner's request). Hidden tracks are silent too. Media kept in the browser's IndexedDB. |
+| 2026-11-24 | Merging PRs | Always merge own PRs when all checks are green. "Dangerous" merges still need a separate warning and «так». |

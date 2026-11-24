@@ -46,6 +46,10 @@ Estimates are for one person and rough.
 ## Stages ("Done when")
 1. **Timeline skeleton** — tracks (3 video/overlay, 2 audio), import, trim, split, reorder with magnet, ripple delete, zoom, fixed playhead, thumbnails, project format/resolution/crop-or-fit, undo/redo, autosave, export.
    *Done when:* on desktop and phone Chrome, 3 clips are joined, trimmed by finger, split, reordered and exported as 9:16 1080p MP4 within 2 minutes; the project survives a reload; export matches preview frame for frame.
+   **Status (2026-11-23): built** ("✂ Монтаж" tab). Deviations from the architecture above, kept simple for stage 1:
+   Canvas 2D compositor (`VLEditor.drawFrame`, shared by preview and export worker) instead of WebGL2; media blobs in IndexedDB
+   (not OPFS); preview clock = `performance.now()` with media elements re-synced; no 540p proxies; no project export to file yet.
+   Hidden tracks are also silent. Checked in headless Chromium (desktop 1360 px + 390 px touch); real phone not tested yet.
 2. **Audio** — waveform, volume, fades, detach, ducking, voice-over. *Done when:* cutting on a waveform peak works and music ducks under voice.
 3. **Text** — on-canvas handles, 10–15 Cyrillic fonts, 20 animations. *Done when:* text is dragged/rotated by finger and the animation matches in export.
 4. **Look** — 40+ transitions with junction preview, filters/LUTs/correction/effects/masks, chroma key, "apply to all". *Done when:* tapping a junction adds a transition; a green screen is removed with the picker without a green halo on the test clip.
