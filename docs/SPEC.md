@@ -33,6 +33,7 @@ Files are never uploaded; the page works without internet, opened straight from 
 | Interactive scale / resolution / aspect tiles, crop on preview, trim timeline with filmstrip and scrubbing | v2 | Done; reuse in the editor |
 | English UI (UK/EN switch) | v2 | Done: header switch, remembered, default from browser language |
 | Timeline editor | v2+ | Stages 1–2 done ("✂ Монтаж" tab: tracks, media library, audio, flexible export); next stages in `docs/editor-plan.md` |
+| Editor: save/open project file (.vlcproj, with or without media), preview proxies (540p) | v2 | Done (Nov 2026) |
 | CI with browser tests | v2 | Done: `tests/`, `.github/workflows/ci.yml` |
 
 ## Security and access

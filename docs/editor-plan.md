@@ -63,6 +63,12 @@ Estimates are for one person and rough.
 7. **Overlays** — stickers, GIF, PiP, blend modes, beat markers. *Done when:* a PiP clip with a blend mode exports as previewed.
 8. **Templates + mobile polish** — templates, background proxies, limits for weak phones, first-run hints. *Done when:* a template fills with 5 clips in 3 taps and a 60 s project plays smoothly on a mid-range phone.
 
+## Project files and proxies (done 2026-11-24)
+- `.vlcproj` = STORE ZIP (ZIP64-aware): `manifest.json`, `project.json`, `media/<id>.<ext>` (optional). Streaming write to disk, central-directory
+  reader with `File.slice`; opening creates a new project id. `VLEditor.ProjectFile.toBlob()` is the input for the encrypted Drive save (next).
+- Proxies: 540p H.264, keyframe every 0.5 s, own IndexedDB `vidlocraft-proxies`; setting «Плавний перегляд» Авто/Завжди/Вимкнено
+  (`vlp-editor-proxy`); preview only — export always uses originals.
+
 ## Risks
 - **Phone performance** (few simultaneous HW decoders, 2–4, verify): preview ≤720p30, proxies, ≤2–3 live videos (others frozen), release frames immediately, Wake Lock during export.
 - **Licences:** no GPL/AGPL inlined; check every shader, font, wasm; own LUT presets; add a "Licences and sources" page.
