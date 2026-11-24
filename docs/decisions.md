@@ -24,3 +24,9 @@
 | 2026-11-23 | Editor stage 1 | Built in orchestration mode (owner's request). Hidden tracks are silent too. Media kept in the browser's IndexedDB. |
 | 2026-11-24 | Merging PRs | Always merge own PRs when all checks are green. "Dangerous" merges still need a separate warning and «так». |
 | 2026-11-24 | Editor stage 2 | Orchestration mode. Unlimited tracks; export as flexible as the converter (incl. frames/GIF); separate media library tab in the editor (pre-fill, drag to timeline any time). CC0 music library postponed. |
+| 2026-11-24 | Next work | Order: CI + small fixes → project file + proxies → own SVG icons, clearer UI, right-click menus → Google Drive. |
+| 2026-11-24 | Repository | Public (closes the SPEC open question). |
+| 2026-11-24 | Project saving | Save/open a project file on the device; optional encrypted save to Google Drive. Google sign-in is never required — offered only when the user chooses to save to Drive. |
+| 2026-11-24 | Google Drive | Project + all its media; a normal visible "VidLoCraft" folder with encrypted files; password-based encryption on the device (forgotten password = no recovery, accepted). |
+| 2026-11-24 | External requests | Exception to "no external requests": Google (sign-in + Drive) only when the user presses "Save to Drive"/"Open from Drive", encrypted data only. |
+| 2026-11-24 | Icons | Own modern SVG icon set instead of emoji everywhere; icons + labels for clarity; context menus on right click. |

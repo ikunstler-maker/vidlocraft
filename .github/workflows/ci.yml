@@ -1,0 +1,57 @@
+# Checks every pull request and every push to main: script syntax, translations, browser scenarios
+# (converter, editor, English UI, phone width) with outputs verified by ffprobe.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Syntax and translations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tests/syntax.mjs
+      - run: node tests/i18n.mjs
+
+  browser:
+    name: Browser scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Converter
+        run: node tests/converter.mjs
+      - name: Editor
+        run: node tests/editor.mjs
+      - name: English UI and phone width
+        run: node tests/ui.mjs
+      - name: Keep test outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-outputs
+          path: tests/.out/
+          retention-days: 7

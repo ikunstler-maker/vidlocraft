@@ -40,6 +40,7 @@ Unsure between two modes → name both with the trade-off (speed vs usage) and r
 - The app uses no keys or accounts. If ever needed: only public keys in the browser; secret ones in GitHub → Settings → Secrets. Never ask for a secret in chat.
 
 ## Checks
-- No CI yet (planned in `docs/roadmap.md`).
+- CI: GitHub Actions `.github/workflows/ci.yml` runs `tests/` (syntax, i18n, converter, editor, UI) on every PR and push to main.
+  Locally: `node tests/run.mjs` (needs Playwright + ffmpeg). Add a scenario to `tests/` for every new feature.
 - Before handing over: syntax check of every `<script>`, page opened from disk offline with no console errors, browser scenarios (Playwright),
   media outputs checked with ffprobe/ffmpeg. Report honestly with numbers; name what could not be checked.

@@ -33,7 +33,7 @@ Files are never uploaded; the page works without internet, opened straight from 
 | Interactive scale / resolution / aspect tiles, crop on preview, trim timeline with filmstrip and scrubbing | v2 | Done; reuse in the editor |
 | English UI (UK/EN switch) | v2 | Done: header switch, remembered, default from browser language |
 | Timeline editor | v2+ | Stages 1–2 done ("✂ Монтаж" tab: tracks, media library, audio, flexible export); next stages in `docs/editor-plan.md` |
-| CI with browser tests | v2 | |
+| CI with browser tests | v2 | Done: `tests/`, `.github/workflows/ci.yml` |
 
 ## Security and access
 - No server, accounts or keys. All processing is local.
@@ -45,7 +45,7 @@ Files are never uploaded; the page works without internet, opened straight from 
    **Done when:** a trim, an aspect change and a scale change are done without typing a number, on desktop and on a 390 px phone screen, and the output matches.
 2. **English UI.** **Done when:** switching UK/EN changes every visible string, the choice is remembered, and the default follows the browser language.
 3. ~~**Editor stage 1**~~ — done (see `docs/editor-plan.md`). Editor stage 2 (audio, unlimited tracks, media library, flexible export) — done. Next: editor stage 3 (text).
-4. **CI.** **Done when:** each PR shows "N of N checks passed" and a broken script turns a check red.
+4. ~~**CI.**~~ Done. **Done when:** each PR shows "N of N checks passed" and a broken script turns a check red.
 
 ## Open questions
-- [ ] Is the repository public (GitHub Pages on a private repo needs a paid plan)?
+- [x] Is the repository public? — Yes (2026-11-24).
