@@ -51,6 +51,11 @@ Estimates are for one person and rough.
    (not OPFS); preview clock = `performance.now()` with media elements re-synced; no 540p proxies; no project export to file yet.
    Hidden tracks are also silent. Checked in headless Chromium (desktop 1360 px + 390 px touch); real phone not tested yet.
 2. **Audio** — waveform, volume, fades, detach, ducking, voice-over. *Done when:* cutting on a waveform peak works and music ducks under voice.
+   **Status (2026-11-24): built.** Also, at the owner's request: unlimited video/audio tracks (add, rename, reorder, delete, solo, track volume,
+   "voice" role); a global media library tab (shared by all projects, drag to the timeline, touch long-press); export as flexible as the
+   converter (format, codec, quality/bitrate/target size, size, fps, audio settings, audio-only MP3/M4A/WAV/OGG/FLAC, range, frame, frames ZIP,
+   contact sheet, GIF, WebP, presets). Preview audio runs through Web Audio (same gain math as export: `E.clipGainAt`). Ducking is
+   interval-based (voice clips present), not level-based. Data model v2 with migration; IndexedDB v2 adds a `library` store.
 3. **Text** — on-canvas handles, 10–15 Cyrillic fonts, 20 animations. *Done when:* text is dragged/rotated by finger and the animation matches in export.
 4. **Look** — 40+ transitions with junction preview, filters/LUTs/correction/effects/masks, chroma key, "apply to all". *Done when:* tapping a junction adds a transition; a green screen is removed with the picker without a green halo on the test clip.
 5. **Pro** — keyframes, speed ramps, freeze frame, Nest, adjustment layer. *Done when:* 3 clips nest into one, edits inside show outside, an effect on the nest applies to the group.
