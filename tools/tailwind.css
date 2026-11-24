@@ -29,3 +29,11 @@
   .vl-grid-2 { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
   .vl-grid-3 { @apply grid grid-cols-2 sm:grid-cols-3 gap-3; }
 }
+
+/* Own SVG icon set (sprite #vl-icons in index.html, helper window.VLIcon). Merge into tools/tailwind.css. */
+.vl-icon { display: inline-block; vertical-align: -0.18em; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+:where(.vl-icon) { width: 1.1em; height: 1.1em; }
+.vl-icon-lg { width: 1.5em; height: 1.5em; }
+.vl-icon-xl { width: 2.25em; height: 2.25em; }
+.vl-chip:has(> .vl-icon), .vl-tab:has(> .vl-icon), .vl-subtab:has(> .vl-icon) { display: inline-flex; align-items: center; justify-content: center; gap: 0.4em; }
+.vl-section>summary:after { content: ""; flex: none; width: 1rem; height: 1rem; background-color: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat; }

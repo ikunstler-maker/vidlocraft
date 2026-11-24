@@ -34,6 +34,7 @@ Files are never uploaded; the page works without internet, opened straight from 
 | English UI (UK/EN switch) | v2 | Done: header switch, remembered, default from browser language |
 | Timeline editor | v2+ | Stages 1–2 done ("✂ Монтаж" tab: tracks, media library, audio, flexible export); next stages in `docs/editor-plan.md` |
 | Editor: save/open project file (.vlcproj, with or without media), preview proxies (540p) | v2 | Done (Nov 2026) |
+| Own SVG icon set across the app, right-click context menus in the editor (clip, track, timeline, ruler, media, preview), clip copy/paste | v2 | Done (Nov 2026) |
 | CI with browser tests | v2 | Done: `tests/`, `.github/workflows/ci.yml` |
 
 ## Security and access
